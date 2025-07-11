@@ -1,0 +1,19 @@
+[project]
+name = "fast-seeder"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "alembic>=1.16.4",
+    "faker>=37.4.0",
+    "fastapi[standard]>=0.116.0",
+    "passlib[bcrypt]>=1.7.4",
+    "psycopg>=3.2.9",
+    "psycopg2-binary>=2.9.10",
+    "pydantic-settings>=2.10.1",
+    "pyjwt>=2.10.1",
+    "pytz>=2025.2",
+    "sqlalchemy>=2.0.41",
+    "uvicorn>=0.35.0",
+]
