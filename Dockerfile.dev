@@ -1,6 +1,8 @@
-FROM python:3.13-slim AS dependencies
+FROM python:3.13-alpine3.21 AS dependencies
 
+# operate in "unbuffered" mode for stdout and stderr
 ENV PYTHONUNBUFFERED=1
+#  install uv by copying the binary from the official distroless
 COPY --from=ghcr.io/astral-sh/uv:0.5.11 /uv /uvx /bin/
 
 ENV UV_COMPILE_BYTE=1
@@ -23,7 +25,5 @@ COPY ./app ./app
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
-
-RUN echo "$PWD"
 
 CMD ["./.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
