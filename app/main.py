@@ -1,14 +1,9 @@
 
 import uvicorn
-from app.core.setup import FastApp
-from app.core.config import get_settings
-
-settings = get_settings()
-app = FastApp(settings=settings)
-
+from app.core.config import settings
 
 def run():
-    uvicorn.run(app, host="localhost", port=8000)
+    uvicorn.run("app.core.setup:app", host=settings.HOST, port=settings.APP_PORT, reload=True)
 
 
 if __name__ == "__main__":

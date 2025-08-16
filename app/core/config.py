@@ -1,11 +1,11 @@
 
-from typing import Union
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class AppConfigSettings(BaseSettings):
     ENV: str = "prod"
     APP_PORT: int = 8000
+    HOST: str = "localhost"
 
 
 class PostgresSettings(BaseSettings):
