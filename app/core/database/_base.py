@@ -1,5 +1,5 @@
-from typing import Callable, Any
-from sqlalchemy import Select, select, func, DateTime
+from typing import Callable, Any, override, Dict
+from sqlalchemy import Select, select, func, DateTime, Column
 from sqlalchemy.sql.roles import ColumnsClauseRole, TypedColumnsClauseRole
 from sqlalchemy.sql.elements import SQLCoreOperations, ColumnElement
 from sqlalchemy.inspection import Inspectable
@@ -10,7 +10,8 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from asyncpg.exceptions import ForeignKeyViolationError, UniqueViolationError
-
+from sqlalchemy.inspection import inspect
+from sqlalchemy.orm import RelationshipProperty
 
 from sqlalchemy.orm import (
     mapped_column,
@@ -71,6 +72,7 @@ Use case: Custom properties that generate SQL when accessed
 """
 
 
+
 class DeclarativeAttributeIntercept(_DeclarativeAttributeIntercept):
     @property
     def select_(
@@ -105,6 +107,13 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
         nullable=False,
     )
 
+    def dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+    @override
+    def __repr__(self) -> str:
+        return str(self.dict())
+
     @classmethod
     async def count(cls, session: AsyncSession, /) -> int:
         return await session.scalar(func.count(cls.id))
@@ -116,6 +125,24 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
     @classmethod
     def get_options(cls) -> list[Load]:
         return cls.get_select_in_load()
+
+    @classmethod
+    def get_relationships(cls) -> Dict[str, RelationshipProperty[Any]]:
+        mapper = inspect(cls)
+        relations = {rel[0]: rel[1] for rel in mapper.relationships.items()}
+        return relations
+
+    @classmethod
+    def get_foreign_columns(cls) -> Dict[str, Column]:
+        relations = cls.get_relationships()        
+        foreign_cols = {}
+        for rel in relations:
+            relationship_property: RelationshipProperty = relations[rel]
+            for fk in relationship_property.remote_side:
+                fk: Column = fk
+                foreign_cols[rel] = fk.name
+
+        return foreign_cols
 
     @classmethod
     async def create(
@@ -135,7 +162,7 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
 
             if commit:
                 await session.commit()
-            
+
             return obj
         except IntegrityError as e:
             await session.rollback()
@@ -167,10 +194,11 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
         if where_clause:
             where_base.extend(where_clause)
 
-        statement = cls.select_(cls).where(*where_base)
+        statement: Select = cls.select_(cls).where(*where_base)
 
+        print(f"Options here: {options}")
         if options:
-            statement.options(*options)
+            statement = statement.options(*options)
 
         result = await session.scalar(statement)
 
