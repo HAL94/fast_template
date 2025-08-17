@@ -1,4 +1,4 @@
-from typing import Callable, Any, override, Dict
+from typing import Callable, Any, override, Dict, Union
 from sqlalchemy import Select, select, func, DateTime, Column
 from sqlalchemy.sql.roles import ColumnsClauseRole, TypedColumnsClauseRole
 from sqlalchemy.sql.elements import SQLCoreOperations, ColumnElement
@@ -72,7 +72,6 @@ Use case: Custom properties that generate SQL when accessed
 """
 
 
-
 class DeclarativeAttributeIntercept(_DeclarativeAttributeIntercept):
     @property
     def select_(
@@ -134,7 +133,7 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
 
     @classmethod
     def get_foreign_columns(cls) -> Dict[str, Column]:
-        relations = cls.get_relationships()        
+        relations = cls.get_relationships()
         foreign_cols = {}
         for rel in relations:
             relationship_property: RelationshipProperty = relations[rel]
@@ -148,15 +147,19 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
     async def create(
         cls,
         session: AsyncSession,
-        data: BaseModel,
+        data: Union[BaseModel, Dict],
         /,
         *,
         commit: bool = True,
     ):
         try:
-            obj: Base = cls(
-                **data.model_dump(exclude_none=True, exclude_unset=True, by_alias=False)
-            )
+            payload = data
+            if isinstance(data, BaseModel):
+                payload = data.model_dump(
+                    exclude_none=True, exclude_unset=True, by_alias=False
+                )
+
+            obj: Base = cls(**payload)
 
             session.add(obj)
 
@@ -196,7 +199,6 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
 
         statement: Select = cls.select_(cls).where(*where_base)
 
-        print(f"Options here: {options}")
         if options:
             statement = statement.options(*options)
 
