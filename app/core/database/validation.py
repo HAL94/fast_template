@@ -1,4 +1,4 @@
-from ._base import Base
+from .base import Base
 
 
 def is_pydantic_database_mixin(obj) -> bool:

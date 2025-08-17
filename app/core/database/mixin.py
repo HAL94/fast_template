@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import ClassVar, Self
 from pydantic import BaseModel
-from ._base import Base
+from .base import Base
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession

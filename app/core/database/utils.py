@@ -1,5 +1,5 @@
 from typing import TYPE_CHECKING, Any
-from ._base import Base
+from .base import Base
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from .validation import is_pydantic_database_mixin

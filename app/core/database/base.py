@@ -67,11 +67,7 @@ Use case: select(User) - passing the entire model class
 What it is: Objects that contain or can produce SQL clause elements
 Example: Hybrid properties, custom SQL expressions
 Use case: Custom properties that generate SQL when accessed
-
-
 """
-
-
 class DeclarativeAttributeIntercept(_DeclarativeAttributeIntercept):
     @property
     def select_(
