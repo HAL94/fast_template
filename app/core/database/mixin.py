@@ -26,7 +26,7 @@ class BaseModelDatabaseMixin(BaseModel, ABC):
             if exclude_relations:
                 result = await cls.model.create(session, data, commit=commit)
             else:
-                handler = CreateModelRelations(model=cls.model, pydantic=data)
+                handler = CreateModelRelations(model=cls.model)
                 # Create the whole object graph first without commiting
                 result: Base = await handler.create_with_relations(
                     session, data, commit=False

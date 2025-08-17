@@ -3,15 +3,18 @@ from .base import Base
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from .validation import is_pydantic_database_mixin
+import logging
+
+logger = logging.getLogger("uvicorn.warn")
+logger.setLevel(logging.WARN)
 
 if TYPE_CHECKING:
     from .mixin import BaseModelDatabaseMixin
 
 
 class CreateModelRelations:
-    def __init__(self, model: type[Base], pydantic: "BaseModelDatabaseMixin"):
+    def __init__(self, model: type[Base]):
         self.model = model
-        self.pydantic = pydantic
 
     async def create_with_relations(
         self,
@@ -35,9 +38,8 @@ class CreateModelRelations:
 
         obj = await self.model.create(session, direct_fields, commit=commit)
 
-        for rel_key, rel_value in parsed.items():
-            if rel_key in relationships:
-                await self._handle_relation(session, obj, rel_key, rel_value, commit)
+        for rel_key, rel_value in relation_data.items():            
+            await self._handle_relation(session, obj, rel_key, rel_value, commit)
 
         # print(f"Created with or without relaitons: {obj}")
         return obj
@@ -75,7 +77,7 @@ class CreateModelRelations:
         rel_value: "BaseModelDatabaseMixin",
         commit: bool,
     ):
-        handler = CreateModelRelations(model=rel_value.model, pydantic=rel_value)
+        handler = CreateModelRelations(model=rel_value.model)
         if rel_value is not None:
             child_data: Base = await handler.create_with_relations(
                 session, rel_value, commit=commit
@@ -92,9 +94,10 @@ class CreateModelRelations:
     ):
         sub_data_result = []
         for item in rel_value:
-            if not item or not is_pydantic_database_mixin(item):
-                raise ValueError("data is None or not of type BaseModelDatabaseMixin")
-            handler = CreateModelRelations(model=item.model, pydantic=item)
+            if not item or not is_pydantic_database_mixin(item):                
+                logger.warning(f"[CreateWithRelation]: data: {item} is None or not of type BaseModelDatabaseMixin")
+                return
+            handler = CreateModelRelations(model=item.model)
             item_result: Base = await handler.create_with_relations(
                 session, item, commit=commit
             )
