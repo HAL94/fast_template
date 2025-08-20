@@ -27,7 +27,7 @@ class BaseModelDatabaseMixin(BaseModel, ABC):
                 result = await cls.model.create(session, data, commit=commit)
             else:
                 handler = CreateModelRelations(model=cls.model)
-                # Create the whole object graph first without commiting
+                # Create the object graph with nested relations without commiting
                 result: Base = await handler.create_with_relations(
                     session, data, commit=False
                 )
@@ -37,8 +37,8 @@ class BaseModelDatabaseMixin(BaseModel, ABC):
 
             if return_as_base:
                 return result
-
-            return await cls.get_one(session, result.id)
+            
+            return cls.model_validate(result, from_attributes=True)
         except Exception as e:
             raise e
 
