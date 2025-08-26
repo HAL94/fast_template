@@ -1,11 +1,21 @@
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+class OAuthSettings(BaseSettings):
+    KEYCLOAK_CLIENT_SECRET: str
+    KEYCLOAK_CLIENT_ID: str
+    KEYCLOAK_SERVER_URL: str
+    KEYCLOAK_REALM: str
+    KEYCLOAK_TOKEN_URL: str
+    KEYCLOAK_REDIRECT_URI: str
+    KEYCLOAK_METADATA_URI: str
 
 class AppConfigSettings(BaseSettings):
     ENV: str = "prod"
     APP_PORT: int = 8000
     HOST: str = "localhost"
+    ALLOWED_ORIGIN: str
+    SESSION_SECRET: str
 
 
 class PostgresSettings(BaseSettings):
@@ -16,7 +26,7 @@ class PostgresSettings(BaseSettings):
     PG_DB: str
 
 
-class Settings(PostgresSettings, AppConfigSettings):
+class Settings(PostgresSettings, OAuthSettings, AppConfigSettings):
     model_config = SettingsConfigDict(
         env_file='.env', env_file_encoding='utf-8')
 

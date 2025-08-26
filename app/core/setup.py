@@ -2,13 +2,16 @@ from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Self
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
+
 from app.core.config import Settings, get_settings
 from app.api import api_router
 from app.core.database import session_manager, Base
+
 from app.models import *  # noqa: F403
 
-
 import logging
+
 logger = logging.getLogger("uvicorn.info")
 logger.setLevel(logging.INFO)
 
@@ -31,10 +34,14 @@ class FastApp(FastAPI):
     def _setup_middlewares(self) -> None:
         self.add_middleware(
             CORSMiddleware,
-            allow_origins=["*"],
+            allow_origins=[self.settings.ALLOWED_ORIGIN],
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
+        )
+        self.add_middleware(
+            SessionMiddleware,
+            secret_key=self.settings.SESSION_SECRET,
         )
 
     def _setup_routers(self) -> None:
