@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any
 from .base import Base
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
+from app.core.schema import BaseModel
 from .validation import is_pydantic_database_mixin
 import logging
 
@@ -25,7 +25,7 @@ class CreateModelRelations:
         commit: bool = False,
     ):
         relationships = self.model.get_relationships()
-        parsed = dict(data)
+        parsed = data.model_dump()
 
         direct_fields = {}
         relation_data = {}

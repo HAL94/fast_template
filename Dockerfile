@@ -8,7 +8,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.5.11 /uv /uvx /bin/
 ENV UV_COMPILE_BYTE=1
 ENV UV_LINK_MODE=copy
 
-WORKDIR /usr/src/app
+WORKDIR /src
 
 COPY ./pyproject.toml ./uv.lock ./.python-version ./
 
@@ -19,11 +19,14 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-dev
 
 FROM dependencies AS base
+
+WORKDIR /src
+
 # Copy the project into image
-WORKDIR /usr/src/app
-COPY ./app ./app
+COPY ./ ./
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
-CMD ["./.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+CMD ["uv", "run", "-m", "app"]

@@ -4,11 +4,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import Settings, get_settings
 from app.api import api_router
-from app.core.database import session_manager, Base
+from app.core.database import session_manager
 from app.models import *  # noqa: F403
+from app.redis import get_redis_client, RedisClient
 
 
 import logging
+
+
 logger = logging.getLogger("uvicorn.info")
 logger.setLevel(logging.INFO)
 
@@ -21,12 +24,11 @@ class FastApp(FastAPI):
 
     @asynccontextmanager
     async def _lifespan(self, _: Self, /) -> AsyncGenerator[None, Any]:
-        logger.info("App Has Started")
-        engine = session_manager.engine
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        logger.info("DATABASE CREATED")
+        redis_client: RedisClient = get_redis_client()
+        await redis_client.connect()
         yield
+        await session_manager.close()
+        await redis_client.disconnect()
 
     def _setup_middlewares(self) -> None:
         self.add_middleware(

@@ -1,4 +1,3 @@
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,9 +15,12 @@ class PostgresSettings(BaseSettings):
     PG_DB: str
 
 
-class Settings(PostgresSettings, AppConfigSettings):
-    model_config = SettingsConfigDict(
-        env_file='.env', env_file_encoding='utf-8')
+class RedisSettings(BaseSettings):
+    REDIS_SERVER: str
+
+
+class Settings(PostgresSettings, AppConfigSettings, RedisSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 
 settings = Settings()
