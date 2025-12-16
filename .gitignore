@@ -10,3 +10,6 @@ wheels/
 .venv
 .env
 postgres_data
+.mypy_cache
+.ruff_cache
+.pytest_cache

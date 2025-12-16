@@ -13,9 +13,7 @@ from app.core.pagination.operator import FieldOperation, LogicalOperator
 
 
 class PaginationSortParser(PaginationParser):
-    def _process_sort_fields(
-        self, sort_by_str: str, model: Base
-    ) -> list[InstrumentedAttribute]:
+    def _process_sort_fields(self, sort_by_str: str, model: Base) -> list[InstrumentedAttribute]:
         """
         Process and validate sort fields.
 
@@ -44,9 +42,7 @@ class PaginationSortParser(PaginationParser):
 
 
 class PaginationFilterParser(PaginationParser):
-    def _process_filter_fields(
-        self, filter_by_str: str, model: Base
-    ) -> list[ColumnElement]:
+    def _process_filter_fields(self, filter_by_str: str, model: Base) -> list[ColumnElement]:
         """
         Process and validate filter fields with type conversion.
 
@@ -68,9 +64,7 @@ class PaginationFilterParser(PaginationParser):
 
                 column: InstrumentedAttribute = getattr(model, key)
 
-                converted_value = self.convert_value(
-                    value=value, column_type=column.type, field_name=key
-                )
+                converted_value = self.convert_value(value=value, column_type=column.type, field_name=key)
 
                 # print(f"Converted value: {bool(value)} - {converted_value}")
 
@@ -120,18 +114,16 @@ class PaginationFactory:
 
                 if not fields:
                     return []
-                
+
                 return fields
 
             @cached_property
             def filter_fields(self):
-                fields = filter_parser._process_filter_fields(
-                    self.filter_by, self.__model__
-                )
+                fields = filter_parser._process_filter_fields(self.filter_by, self.__model__)
 
                 if not fields:
                     return []
-                
+
                 return fields
 
             @field_validator("sort_by")
@@ -145,9 +137,7 @@ class PaginationFactory:
                 for field in sort_fields:
                     clean_field = field.lstrip("-")
 
-                    sort_parser.validate_field(
-                        field=clean_field, allowed_fields=sortable_fields
-                    )
+                    sort_parser.validate_field(field=clean_field, allowed_fields=sortable_fields)
 
                 return v
 
@@ -156,7 +146,7 @@ class PaginationFactory:
             def validate_filter_fields(cls, v):
                 if not v:
                     return v
-                
+
                 filter_pairs = filter_parser.split_and_clean_fields(v)
 
                 error_message = "Filtering not allowed on field '{field}'. Allowed fields are {allowed_fields}"
@@ -165,10 +155,8 @@ class PaginationFactory:
                     field = None
 
                     try:
-                        operator: LogicalOperator = FieldOperation.determine_operator(
-                            pair
-                        )
-                
+                        operator: LogicalOperator = FieldOperation.determine_operator(pair)
+
                         field, _ = pair.split(operator.value, 1)
 
                     except Exception:

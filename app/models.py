@@ -8,9 +8,7 @@ class Todo(Base):
 
     title: Mapped[str] = mapped_column(VARCHAR(255), nullable=False)
     # Relationships
-    subtasks: Mapped[list["Subtask"]] = relationship(
-        back_populates="task", cascade="all, delete"
-    )
+    subtasks: Mapped[list["Subtask"]] = relationship(back_populates="task", cascade="all, delete")
 
 
 class Subtask(Base):

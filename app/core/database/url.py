@@ -7,5 +7,5 @@ DATABASE_URL = URL.create(
     password=settings.PG_PW,
     host=settings.PG_SERVER,
     database=settings.PG_DB,
-    port=settings.PG_PORT
+    port=settings.PG_PORT,
 )

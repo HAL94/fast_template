@@ -46,9 +46,7 @@ class RedisClient:
                 logger.info("[RedisClient] is connected successfully!")
             return is_connected
         except Exception as e:
-            logger.error(
-                f"An error occured while connecting: {e} {traceback.format_exc()}"
-            )
+            logger.error(f"An error occured while connecting: {e} {traceback.format_exc()}")
             return False
 
     async def disconnect(self):
@@ -56,9 +54,7 @@ class RedisClient:
         try:
             await self.disconnect()
         except Exception as e:
-            logger.error(
-                f"An error occured disconnecting: {e} {traceback.format_exc()}"
-            )
+            logger.error(f"An error occured disconnecting: {e} {traceback.format_exc()}")
 
     @property
     def client(self) -> redis.Redis:
@@ -100,14 +96,10 @@ class RedisClient:
             result = await self.client.set(key, value, ex=ex, px=px, nx=nx, xx=xx)
             return bool(result)
         except Exception as e:
-            logger.error(
-                f"[RedisClient]: Failed to set key: {key} with value: {value}. Error: {e}"
-            )
+            logger.error(f"[RedisClient]: Failed to set key: {key} with value: {value}. Error: {e}")
             return False
 
-    async def get(
-        self, key: str, /, *, as_json: bool = False
-    ) -> Optional[Union[str, Any]]:
+    async def get(self, key: str, /, *, as_json: bool = False) -> Optional[Union[str, Any]]:
         """
         Get a value by key.
 

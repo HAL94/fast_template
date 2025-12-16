@@ -1,8 +1,11 @@
-from app.core.database import BaseModelDatabaseMixin
-from app.models import Todo as TodoModel, Subtask as SubtaskModel
-from sqlalchemy.orm import selectinload
 from typing import ClassVar, Optional
+
 from pydantic import Field
+from sqlalchemy.orm import selectinload
+
+from app.core.database import BaseModelDatabaseMixin
+from app.models import Subtask as SubtaskModel
+from app.models import Todo as TodoModel
 
 
 class TodoBase(BaseModelDatabaseMixin):

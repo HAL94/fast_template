@@ -1,16 +1,15 @@
+import logging
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Self
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.core.config import Settings, get_settings
+
 from app.api import api_router
+from app.core.config import Settings, get_settings
 from app.core.database import session_manager
 from app.models import *  # noqa: F403
-from app.redis import get_redis_client, RedisClient
-
-
-import logging
-
+from app.redis import RedisClient, get_redis_client
 
 logger = logging.getLogger("uvicorn.info")
 logger.setLevel(logging.INFO)

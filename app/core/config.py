@@ -27,7 +27,7 @@ settings = Settings()
 
 
 def get_settings() -> Settings:
-    global settings
+    global settings  # noqa: PLW0603
     if settings is None:
         settings = Settings()
     return settings

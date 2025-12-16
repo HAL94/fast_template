@@ -23,9 +23,7 @@ class PaginationParser:
         """Validates if a field is in the allowed list."""
         # print(f"validatin if {field} exist in {allowed_fields}")
         if field not in allowed_fields:
-            raise BadRequestException(
-                error_message.format(field=field, allowed_fields=allowed_fields)
-            )
+            raise BadRequestException(error_message.format(field=field, allowed_fields=allowed_fields))
 
     @classmethod
     def convert_value(cls, *, value: Any, column_type: Any, field_name: str):
@@ -45,6 +43,7 @@ class PaginationParser:
                 return value == "true" or value == "1"
             if isinstance(column_type, DateTime):
                 from datetime import datetime
+
                 try:
                     return datetime.fromisoformat(value)
                 except Exception:

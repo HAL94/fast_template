@@ -1,17 +1,18 @@
 from abc import ABC
 from typing import Any, ClassVar, Dict, Literal, Optional, Self, Union
-from pydantic import BaseModel
 
-from app.core.pagination.factory import PaginationQuery
-from app.core.schema import BaseModel as AppBaseModel
-from .base import Base
-from sqlalchemy.orm.attributes import InstrumentedAttribute
-from sqlalchemy.sql.elements import ColumnElement
-from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.orm.strategy_options import _AbstractLoad
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.exceptions import NotFoundException
+from app.core.pagination.factory import PaginationQuery
+from app.core.schema import BaseModel as AppBaseModel
+
+from .base import Base
 
 
 class BaseModelDatabaseMixin(AppBaseModel, ABC):
@@ -25,7 +26,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
     async def exists(
         cls,
         session: AsyncSession,
-        id: Any,
+        val: Any,
         /,
         *,
         field: Optional[str] = None,
@@ -33,14 +34,10 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
         where_clause: list[ColumnElement[bool]] = None,
     ) -> bool:
         try:
-            result = await cls.model.exists(
-                session, id, field=field, where_clause=where_clause
-            )
+            result = await cls.model.exists(session, val, field=field, where_clause=where_clause)
 
             if raise_not_found and not result:
-                raise NotFoundException(
-                    message=f"{cls.model.__name__} resource does exist"
-                )
+                raise NotFoundException(message=f"{cls.model.__name__} resource does exist")
 
             return result
         except Exception as e:
@@ -81,17 +78,12 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
             if not data or len(data) <= 0:
                 return []
 
-            result: list[Base] = await cls.model.create_many(
-                session, data, commit=commit, batch_size=batch_size
-            )
+            result: list[Base] = await cls.model.create_many(session, data, commit=commit, batch_size=batch_size)
 
             if return_as_base:
                 return result
 
-            data = [
-                cls.model_validate({**item.dict()}, from_attributes=True)
-                for item in result
-            ]
+            data = [cls.model_validate({**item.dict()}, from_attributes=True) for item in result]
 
             return data
         except Exception as e:
@@ -109,9 +101,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
         return_as_base: bool = False,
     ):
         try:
-            result = await cls.model.update_one(
-                session, data, where_clause=where_clause, commit=commit
-            )
+            result = await cls.model.update_one(session, data, where_clause=where_clause, commit=commit)
 
             if return_as_base:
                 return result
@@ -149,9 +139,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
                 if return_as_base:
                     return result
 
-                return [
-                    cls.model_validate(item, from_attributes=True) for item in result
-                ]
+                return [cls.model_validate(item, from_attributes=True) for item in result]
 
             pagination_where_clause = pagination.filter_fields
             pagination_order_clause = pagination.sort_fields
@@ -170,9 +158,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
                 return paginated_result
 
             result = paginated_result.result
-            paginated_result.result = [
-                cls.model_validate(item, from_attributes=True) for item in result
-            ]
+            paginated_result.result = [cls.model_validate(item, from_attributes=True) for item in result]
 
             return paginated_result
 
@@ -232,9 +218,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
             except Exception as e:
                 raise e
 
-        result = await cls.model.upsert_one(
-            session, data, index_elements, commit=commit, on_conflict=on_conflict
-        )
+        result = await cls.model.upsert_one(session, data, index_elements, commit=commit, on_conflict=on_conflict)
 
         if return_as_base:
             return result
@@ -254,9 +238,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
         return_as_base: bool = False,
     ):
         try:
-            result = await cls.model.delete_one(
-                session, val, field=field, where_clause=where_clause, commit=commit
-            )
+            result = await cls.model.delete_one(session, val, field=field, where_clause=where_clause, commit=commit)
 
             if return_as_base:
                 return result
@@ -309,9 +291,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
             except Exception as e:
                 raise e
 
-        result = await cls.model.upsert_many(
-            session, data, index_elements, commit=commit, on_conflict=on_conflict
-        )
+        result = await cls.model.upsert_many(session, data, index_elements, commit=commit, on_conflict=on_conflict)
 
         if return_as_base:
             return result
@@ -330,9 +310,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
         return_as_base: bool = False,
     ):
         try:
-            result = await cls.model.update_many_by_id(
-                session, data, commit=commit, where_clause=where_clause
-            )
+            result = await cls.model.update_many_by_id(session, data, commit=commit, where_clause=where_clause)
 
             if return_as_base:
                 return result

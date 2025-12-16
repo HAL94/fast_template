@@ -1,13 +1,13 @@
 import asyncio
 from logging.config import fileConfig
 
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
-from app.core.database import Base, DATABASE_URL
-from app.models import *  # noqa: F403
 
-from alembic import context
+from app.core.database import DATABASE_URL, Base
+from app.models import *  # noqa: F403
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -66,7 +66,7 @@ async def run_async_migrations() -> None:
 
     """
     print(f"Database URL: {DATABASE_URL}")
-    connectable = create_async_engine(DATABASE_URL, poolclass=pool.NullPool)    
+    connectable = create_async_engine(DATABASE_URL, poolclass=pool.NullPool)
 
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)

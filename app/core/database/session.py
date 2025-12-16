@@ -16,12 +16,10 @@ class SessionManager:
             kwargs = {}
 
         self.engine: AsyncEngine | None = create_async_engine(host, **kwargs)
-        self._session_maker: async_sessionmaker[AsyncSession] | None = (
-            async_sessionmaker(
-                autocommit=False,
-                bind=self.engine,
-                expire_on_commit=False,
-            )
+        self._session_maker: async_sessionmaker[AsyncSession] | None = async_sessionmaker(
+            autocommit=False,
+            bind=self.engine,
+            expire_on_commit=False,
         )
 
     async def close(self) -> None:
@@ -54,6 +52,7 @@ session_manager: SessionManager = SessionManager(
         "echo": False,
     },
 )
+
 
 async def get_async_session():
     async with session_manager.session() as session:

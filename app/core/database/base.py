@@ -167,9 +167,7 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
         try:
             payload = data
             if isinstance(data, BaseModel):
-                payload = data.model_dump(
-                    exclude_none=True, exclude_unset=True, by_alias=False
-                )
+                payload = data.model_dump(exclude_none=True, exclude_unset=True, by_alias=False)
 
             obj: Base = cls(**payload)
 
@@ -210,14 +208,10 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
             for batch in range(0, len(data), batch_size):
                 if isinstance(data[0], BaseModel):
                     payload = [
-                        item.model_dump(
-                            exclude_unset=True, exclude_none=True, by_alias=False
-                        )
+                        item.model_dump(exclude_unset=True, exclude_none=True, by_alias=False)
                         for item in data[batch : batch + batch_size]
                     ]
-                insert_result = (
-                    (await session.execute(statement, payload)).scalars().all()
-                )
+                insert_result = (await session.execute(statement, payload)).scalars().all()
                 result.extend(insert_result)
 
             if commit:
@@ -253,9 +247,7 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
                 statement = statement.order_by(*order_clause)
 
             total_count = await session.scalar(
-                select(func.count()).select_from(
-                    select(cls).where(*where_base).subquery()
-                )
+                select(func.count()).select_from(select(cls).where(*where_base).subquery())
             )
             base_options = cls.get_select_in_load()
             if base_options:
@@ -268,9 +260,7 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
 
             result = await session.scalars(statement)
 
-            return PaginatedResult(
-                result=result, size=size, page=page, total_records=total_count
-            )
+            return PaginatedResult(result=result, size=size, page=page, total_records=total_count)
         except Exception as e:
             raise e
 
@@ -360,13 +350,9 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
             raise ValueError("must pass where_clause")
 
         if isinstance(data, BaseModel):
-            data = data.model_dump(
-                exclude_unset=True, exclude_none=True, by_alias=False
-            )
+            data = data.model_dump(exclude_unset=True, exclude_none=True, by_alias=False)
 
-        updated_model = await session.scalar(
-            update(cls).values(data).filter(*where_clause).returning(cls)
-        )
+        updated_model = await session.scalar(update(cls).values(data).filter(*where_clause).returning(cls))
 
         if commit:
             await session.commit()
@@ -426,9 +412,7 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
             if not where_clause:
                 raise ValueError("'where_cluse' must be passed")
 
-            result = await session.scalars(
-                delete(cls).where(*where_clause).returning(cls)
-            )
+            result = await session.scalars(delete(cls).where(*where_clause).returning(cls))
 
             if commit:
                 await session.commit()
@@ -467,27 +451,19 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
             missing_keys = index_keys - data_keys
 
             if missing_keys:
-                raise ValueError(
-                    f"Data must include all index elements. Missing: {missing_keys}"
-                )
+                raise ValueError(f"Data must include all index elements. Missing: {missing_keys}")
 
             if len(data_keys - index_keys) == 0:
-                raise ValueError(
-                    "Index elements match all data fields, upsert is invalid."
-                )
+                raise ValueError("Index elements match all data fields, upsert is invalid.")
 
             stmt = pg_insert(cls).values(data_dict)
 
             if on_conflict == "do_update":
                 updated_columns = {
-                    key: getattr(stmt.excluded, key)
-                    for key in data_dict.keys()
-                    if key not in index_elements
+                    key: getattr(stmt.excluded, key) for key in data_dict.keys() if key not in index_elements
                 }
 
-                stmt = stmt.on_conflict_do_update(
-                    index_elements=index_elements, set_=updated_columns
-                )
+                stmt = stmt.on_conflict_do_update(index_elements=index_elements, set_=updated_columns)
             else:
                 stmt = stmt.on_conflict_do_nothing(index_elements=index_elements)
 
@@ -523,12 +499,9 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
                 index_elements = [cls.id]
 
             index_elements = [
-                col.name if isinstance(col, InstrumentedAttribute) else str(col)
-                for col in index_elements
+                col.name if isinstance(col, InstrumentedAttribute) else str(col) for col in index_elements
             ]
-            data_values = [
-                item.model_dump(exclude_none=True, by_alias=False) for item in data
-            ]
+            data_values = [item.model_dump(exclude_none=True, by_alias=False) for item in data]
 
             data_model_fields = data[0].__class__.model_fields
             data_keys = set(data_model_fields.keys())
@@ -537,9 +510,7 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
             # if all keys in data match with index_elements, then the operation is invalid
             # because there are no distinctions that could be used for the on conflict clause.
             if len(data_keys - index_keys) == 0:
-                raise ValueError(
-                    "Index elements match all model fields, upsert is invalid."
-                )
+                raise ValueError("Index elements match all model fields, upsert is invalid.")
             #  if no key in index_elements exists in data, then the operation is invalid
             missing_keys = index_keys - data_keys
             if missing_keys:
@@ -556,12 +527,9 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
                     key: getattr(stmt.excluded, key)
                     # Use the first data object's keys
                     for key in data_values[0].keys()
-                    if key
-                    not in index_elements  # Ensure index elements are not updated
+                    if key not in index_elements  # Ensure index elements are not updated
                 }
-                stmt = stmt.on_conflict_do_update(
-                    index_elements=index_elements, set_=updated_columns
-                )
+                stmt = stmt.on_conflict_do_update(index_elements=index_elements, set_=updated_columns)
 
             updated_or_created_data = await session.scalars(
                 stmt.returning(cls),
@@ -619,9 +587,7 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
                 update_items.append(item.model_dump(exclude_none=True, by_alias=False))
                 update_ids.append(getattr(item, "id"))
 
-            await session.execute(
-                stmt, update_items, execution_options={"synchronize_session": None}
-            )
+            await session.execute(stmt, update_items, execution_options={"synchronize_session": None})
 
             if commit:
                 await session.commit()

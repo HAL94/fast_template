@@ -4,9 +4,7 @@ from pydantic.alias_generators import to_camel
 
 
 class BaseModel(OrigModel):
-    model_config = ConfigDict(
-        alias_generator=AliasGenerator(to_camel), populate_by_name=True, from_attributes=True
-    )
+    model_config = ConfigDict(alias_generator=AliasGenerator(to_camel), populate_by_name=True, from_attributes=True)
 
 
 T = TypeVar("T")
