@@ -1,5 +1,7 @@
 from typing import Generic, Optional, TypeVar
-from pydantic import AliasGenerator, BaseModel as OrigModel, ConfigDict, Field
+
+from pydantic import AliasGenerator, ConfigDict, Field
+from pydantic import BaseModel as OrigModel
 from pydantic.alias_generators import to_camel
 
 

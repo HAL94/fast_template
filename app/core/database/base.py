@@ -1,39 +1,38 @@
-from typing import Callable, Any, Literal, Optional, override, Dict, Union
+from datetime import datetime
+from typing import Any, Callable, Dict, Literal, Optional, Union, override
+
+from asyncpg.exceptions import ForeignKeyViolationError, UniqueViolationError
+from pydantic import BaseModel
 from sqlalchemy import (
+    Column,
+    DateTime,
     Select,
     delete,
+    func,
     insert,
     select,
-    func,
-    DateTime,
-    Column,
     update,
 )
-from sqlalchemy.sql.roles import ColumnsClauseRole, TypedColumnsClauseRole
-from sqlalchemy.sql.elements import SQLCoreOperations, ColumnElement
-from sqlalchemy.inspection import Inspectable
-from sqlalchemy.sql._typing import _HasClauseElement
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm.strategy_options import Load
-from sqlalchemy.orm.attributes import InstrumentedAttribute
-from pydantic import BaseModel
-from sqlalchemy.exc import IntegrityError
-from asyncpg.exceptions import ForeignKeyViolationError, UniqueViolationError
-from sqlalchemy.inspection import inspect
-from sqlalchemy.orm import RelationshipProperty
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.orm.strategy_options import _AbstractLoad
-
-
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.inspection import Inspectable, inspect
 from sqlalchemy.orm import (
-    mapped_column,
-    Mapped,
     DeclarativeBaseNoMeta as _DeclarativeBaseNoMeta,
 )
+from sqlalchemy.orm import (
+    Mapped,
+    RelationshipProperty,
+    mapped_column,
+)
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.orm.decl_api import (
     DeclarativeAttributeIntercept as _DeclarativeAttributeIntercept,
 )
-from datetime import datetime
+from sqlalchemy.orm.strategy_options import Load, _AbstractLoad
+from sqlalchemy.sql._typing import _HasClauseElement
+from sqlalchemy.sql.elements import ColumnElement, SQLCoreOperations
+from sqlalchemy.sql.roles import ColumnsClauseRole, TypedColumnsClauseRole
 
 from app.core.pagination import PaginatedResult
 
@@ -115,7 +114,6 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
         for rel in relations:
             relationship_property: RelationshipProperty = relations[rel]
             for fk in relationship_property.remote_side:
-                fk: Column = fk
                 foreign_cols[rel] = fk.name
 
         return foreign_cols
@@ -340,7 +338,7 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
     async def update_one(
         cls,
         session: AsyncSession,
-        data: Union[BaseModel, dict],
+        data: Union[BaseModel, Dict],
         /,
         *,
         where_clause: list[ColumnElement[bool]] | None = None,

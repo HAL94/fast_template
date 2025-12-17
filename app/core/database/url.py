@@ -1,5 +1,6 @@
-from app.core.config import settings
 from sqlalchemy import URL
+
+from app.core.config import settings
 
 DATABASE_URL = URL.create(
     drivername="postgresql+asyncpg",
