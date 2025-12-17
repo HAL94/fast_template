@@ -19,7 +19,6 @@ dependencies = [
     "pytz>=2025.2",
     "redis>=7.1.0",
     "sqlalchemy>=2.0.41",
-    "testcontainers[postgres]>=4.13.3",
     "uvicorn>=0.35.0",
 ]
 

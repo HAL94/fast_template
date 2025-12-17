@@ -16,6 +16,9 @@ class TodoService(BaseService):
     def _get_model(self) -> type[TodoBase]:
         return self._todo
 
+    async def get_todos(self) -> list[TodoWithTasks]:
+        return await self._todo_with_tasks.get_all(self.session)
+
     async def get_todo(self, todo_id: int) -> TodoWithTasks:
         return await self._todo_with_tasks.get_one(self.session, todo_id)
 
@@ -26,6 +29,8 @@ class TodoService(BaseService):
             commit=False,
             return_as_base=True,
         )
-        todo.subtasks = [Subtask(task=todo, priority=subtask.priority) for subtask in todo_create.subtasks]
+        todo.subtasks = [
+            Subtask(task=todo, priority=subtask.priority, title=subtask.title) for subtask in todo_create.subtasks
+        ]
         await self.session.commit()
         return TodoWithTasks.model_validate({"title": todo.title, "subtasks": todo.subtasks, "id": todo.id})

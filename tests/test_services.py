@@ -1,33 +1,22 @@
-from typing import AsyncGenerator
-from unittest.mock import patch
-
 import pytest
-import pytest_asyncio
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dto.todo import TodoCreate
 from app.services.todo import TodoService
 
 
-class TestTodoCruds:
+class TestTodoService:
     @pytest.fixture
-    def mock_todo_service(self, mocker):
-        with patch("api.v1.todos.TodoService") as mock_todo_service_class:
-            mock_todo_service = mocker.MagicMock(spec=TodoService)
-            mock_todo_service_class.return_value = mock_todo_service
-            yield mock_todo_service
-
-    @pytest_asyncio.fixture
-    async def todo_service(self, test_session) -> AsyncGenerator[TodoService, None]:
+    def todo_service(self, async_session: AsyncSession) -> TodoService:
         """
         Fixture that provides an instance of the TodoService for testing,
         using the transactional AsyncSession.
         """
-        async with test_session() as session:
-            service = TodoService(session=session)
-            yield service
+        return TodoService(session=async_session)
 
     @pytest.mark.asyncio
     async def test_create_todo(self, todo_service: TodoService):
+        """Test the todo creation"""
         todo_item = TodoCreate(title="1st todo")
 
         added_todo = await todo_service.create_todo(todo_item)
@@ -35,3 +24,21 @@ class TestTodoCruds:
         assert added_todo is not None
         assert added_todo.id is not None
         assert added_todo.title == todo_item.title
+
+    @pytest.mark.asyncio
+    async def test_get_todo(self, todo_service: TodoService):
+        """Get a todo by id and check it fetches successfully"""
+        todo_id = 1
+        todo = await todo_service.get_todo(todo_id)
+
+        assert todo is not None
+        assert todo.id == todo_id
+        assert todo.title is not None
+
+    @pytest.mark.asyncio
+    async def test_get_all_todos(self, todo_service: TodoService):
+        """Get all todos"""
+        todos = await todo_service.get_todos()
+
+        assert todos is not None
+        assert len(todos) != 0

@@ -11,15 +11,15 @@ from app.models import Todo as TodoModel
 class TodoBase(BaseModelDatabaseMixin):
     model: ClassVar[type[TodoModel]] = TodoModel
 
-    @classmethod
-    def relations(cls):
-        return [selectinload(cls.model.subtasks)]
-
     id: Optional[int] = Field(default=None)
     title: str
 
 
 class TodoWithTasks(TodoBase):
+    @classmethod
+    def relations(cls):
+        return [selectinload(cls.model.subtasks)]
+
     subtasks: Optional[list["SubtaskBase"]] = Field(default=[])
 
 
@@ -27,5 +27,5 @@ class SubtaskBase(BaseModelDatabaseMixin):
     model: ClassVar[type[SubtaskModel]] = SubtaskModel
 
     id: Optional[int] = None
+    title: Optional[str] = None
     priority: int
-    todo_id: Optional[int] = None

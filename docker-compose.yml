@@ -6,13 +6,12 @@ services:
     volumes:
       - ./app:/src/app:z
       - /src/.venv      
-    # Maps to 8000 as defined by APP_PORT,
-    # if APP_PORT is not set, it defaults to 8000
     ports:
       - "${APP_PORT:-8000}:8000"
     env_file:
       - ./.env
     depends_on:
+      - migration
       - postgres
     networks:
       - fast_network
@@ -26,17 +25,13 @@ services:
       POSTGRES_PORT: ${PG_PORT}
     ports:
       - 5432:5432
-
-    # This volume stores PostgreSQL data outside of the container filesystem,
-    # preserving data between container restarts or recreations
     volumes:
       - ./postgres_data:/var/lib/postgresql/data:z
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d test"]
+      test: ["CMD-SHELL", "pg_isready -U $PG_SERVER -d $PG_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
-
     networks:
       - fast_network
   

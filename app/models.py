@@ -1,6 +1,7 @@
-from app.core.database import Base
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import VARCHAR, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.core.database import Base
 
 
 class Todo(Base):
@@ -15,6 +16,7 @@ class Subtask(Base):
     __tablename__ = "subtasks"
 
     priority: Mapped[int] = mapped_column(nullable=False)
+    title: Mapped[str] = mapped_column(nullable=True)
     # Relationships
     todo_id: Mapped[int] = mapped_column(ForeignKey("todos.id"))
     task: Mapped[Todo] = relationship(back_populates="subtasks")
