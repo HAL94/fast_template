@@ -1,4 +1,6 @@
 from fastapi import APIRouter
+
+from .auth import auth_router
 from .todos import todos_router
 
 v1_router = APIRouter(prefix="/v1")
@@ -10,3 +12,4 @@ def welcome():
 
 
 v1_router.include_router(todos_router)
+v1_router.include_router(auth_router)

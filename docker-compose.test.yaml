@@ -1,6 +1,6 @@
 services:
   pytest:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
     command: ["uv", "run", "pytest"]
@@ -11,13 +11,16 @@ services:
       - migrator_test
     networks:
       - test_network
-    
+
   db_test:
     container_name: todo_app_db_test
     image: postgres:17.4-alpine3.21
     restart: "no"
-    env_file:
-      ./tests/.env.pytest
+    environment:
+      POSTGRES_DB: test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_PORT: 5432
     ports:
       - 5433:5432
     healthcheck:
@@ -30,7 +33,7 @@ services:
 
 
   migrator_test:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
     command: ["uv", "run", "alembic", "upgrade", "head"]

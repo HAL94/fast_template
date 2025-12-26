@@ -1,0 +1,22 @@
+from typing import ClassVar, Optional
+
+from pydantic import Field
+
+from app.core.database.mixin import BaseModelDatabaseMixin
+from app.models import User, UserRole
+
+
+class UserBase(BaseModelDatabaseMixin):
+    model: ClassVar[type[User]] = User
+
+    id: Optional[int] = None
+    full_name: str
+    email: str
+    hashed_password: str
+    is_active: bool = True
+    is_admin: bool = False
+    role: UserRole = UserRole.USER
+
+
+class UserWithoutPassword(UserBase):
+    hashed_password: Optional[str] = Field(exclude=True, default=None)
