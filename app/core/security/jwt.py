@@ -1,3 +1,4 @@
+import hashlib
 import logging
 from datetime import UTC, datetime, timedelta
 from typing import Union
@@ -22,15 +23,26 @@ def hash_password(plain_password: str) -> str:
     return password_hash.hash(plain_password)
 
 
+def hash_token(refresh_token: str) -> str:
+    return hashlib.sha256(refresh_token.encode()).hexdigest()
+
+
 class JwtManager:
     @classmethod
-    def _get_expiry_by_token_type(cls, token_type: TokenType) -> float:
-        if token_type == TokenType.AccessToken:
-            return float(settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        elif token_type == TokenType.RefreshToken:
-            return float(settings.REFRESH_TOKEN_EXPIRE_MINUTES)
+    def get_expiry(cls, token_type: TokenType, expire_delta: Union[timedelta | None] = None) -> datetime:
+        if expire_delta is not None and isinstance(expire_delta, timedelta):
+            return datetime.now(tz=UTC) + expire_delta
 
-        raise ValueError(f"Unknown type of {token_type}")
+        duration_by_type = None
+
+        if token_type == TokenType.AccessToken:
+            duration_by_type = float(settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        elif token_type == TokenType.RefreshToken:
+            duration_by_type = float(settings.REFRESH_TOKEN_EXPIRE_MINUTES)
+        else:
+            raise ValueError(f"Unknown type of {token_type}")
+
+        return datetime.now(tz=UTC) + timedelta(minutes=duration_by_type)
 
     @classmethod
     def create_token(cls, *, subject: str, token_type: TokenType, expire_delta: Union[timedelta | None] = None) -> str:
@@ -41,11 +53,7 @@ class JwtManager:
             if token_type is None:
                 raise ValueError("'token_type' cannot be None")
 
-            if expire_delta is None:
-                exp = datetime.now(tz=UTC) + timedelta(minutes=cls._get_expiry_by_token_type(token_type))
-            else:
-                exp = datetime.now(tz=UTC) + expire_delta
-
+            exp = cls.get_expiry(token_type=token_type, expire_delta=expire_delta)
             payload = JwtPayload(sub=subject, exp=exp, type=token_type)
 
             return jwt.encode(payload.model_dump(by_alias=False), settings.JWT_SECRET, algorithm=settings.ALGORITHM)

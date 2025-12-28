@@ -1,4 +1,5 @@
 import logging
+from typing import Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,6 +7,7 @@ from app.core.exceptions import AlreadyExistException, UnauthorizedException
 from app.core.security.jwt import JwtManager, hash_password, verify_password
 from app.core.security.schema import TokenType
 from app.domain.auth import UserBase, UserWithoutPassword
+from app.domain.session import SessionBase
 from app.dto.auth import LoginUserDto, RegisterUserDto, UserSession
 from app.services.base import BaseService
 
@@ -18,6 +20,7 @@ class AuthService(BaseService):
         super().__init__(session)
         self._user = UserBase
         self._user_without_pw = UserWithoutPassword
+        self._session = SessionBase
 
     def _get_model(self) -> type[UserBase]:
         """Return the model class this service works with."""
@@ -47,7 +50,7 @@ class AuthService(BaseService):
             logger.info(f"[AuthService-register]: {e}")
             raise e
 
-    async def login(self, data: LoginUserDto) -> UserSession:
+    async def login(self, data: LoginUserDto) -> Tuple[UserSession, UserBase]:
         try:
             found_user: UserBase = await self._user.get_one(self.session, data.email, field=self._user.model.email)
 
@@ -58,8 +61,7 @@ class AuthService(BaseService):
 
             access_token = JwtManager.create_token(subject=found_user.email, token_type=TokenType.AccessToken)
             refresh_token = JwtManager.create_token(subject=found_user.email, token_type=TokenType.RefreshToken)
-
-            return UserSession(access_token=access_token, refresh_token=refresh_token)
+            return UserSession(access_token=access_token, refresh_token=refresh_token), found_user
         except Exception as e:
             logger.info(f"[AuthService-login]: {e}")
             raise e

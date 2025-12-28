@@ -1,15 +1,17 @@
 from typing import ClassVar, Optional
+from uuid import UUID
 
 from pydantic import Field
 
+from app.constants.roles import UserRole
 from app.core.database.mixin import BaseModelDatabaseMixin
-from app.models import User, UserRole
+from app.models import User
 
 
 class UserBase(BaseModelDatabaseMixin):
     model: ClassVar[type[User]] = User
 
-    id: Optional[int] = None
+    id: Optional[UUID] = None
     full_name: str
     email: str
     hashed_password: str
