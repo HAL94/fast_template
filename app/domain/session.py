@@ -8,7 +8,7 @@ from app.core.database.mixin import BaseModelDatabaseMixin
 from app.models import Session
 
 
-class SessionBase(BaseModelDatabaseMixin):
+class SessionBase(BaseModelDatabaseMixin[Session]):
     model: ClassVar[type[Session]] = Session
 
     id: Optional[UUID] = Field(default=None)

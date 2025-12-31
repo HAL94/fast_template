@@ -8,8 +8,8 @@ from app.core.database.mixin import BaseModelDatabaseMixin
 from app.models import User
 
 
-class UserBase(BaseModelDatabaseMixin):
-    model: ClassVar[type[User]] = User
+class UserBase(BaseModelDatabaseMixin[User]):
+    model: ClassVar[User] = User
 
     id: Optional[UUID] = None
     full_name: str

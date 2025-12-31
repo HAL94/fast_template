@@ -1,4 +1,5 @@
 import logging
+import traceback
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -75,7 +76,7 @@ class AuthService(BaseService):
             )
             return UserSession(access_token=access_token, refresh_token=refresh_token, session_id=user_session.id)
         except Exception as e:
-            logger.info(f"[AuthService-login]: {e}")
+            logger.error(f"[AuthService-login]: {e}")
             raise e
 
     async def refresh_session(self, rt_encoding: str) -> UserSession:
@@ -97,6 +98,7 @@ class AuthService(BaseService):
             user_session = await self._session.get_one(
                 self.session, hash_token(rt_token), field=self._session.model.refresh_token_hash, return_as_base=True
             )
+            logger.info(f"User Session: {user_session}")
             if not user_session.is_active:
                 raise credentials_exception
 
@@ -116,5 +118,6 @@ class AuthService(BaseService):
                 access_token=new_access_token, refresh_token=new_refresh_token, session_id=new_session.id
             )
         except Exception as e:
-            print(f"Error occure: {e}")
+            logger.error(f"[AuthService-refresh]: {e}")
+            traceback.print_exc()
             raise e

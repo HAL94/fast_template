@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Callable, Dict, Literal, Optional, Union, override
+from typing import Any, Callable, Dict, Literal, Optional, Self, Union, override
 
 from asyncpg.exceptions import ForeignKeyViolationError, UniqueViolationError
 from pydantic import BaseModel
@@ -310,7 +310,7 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
         field: InstrumentedAttribute | str | None = None,
         options: list[_AbstractLoad] = None,
         where_clause: list[ColumnElement[bool]] = None,
-    ):
+    ) -> Self:
         base_options = cls.get_options()
 
         if field is None:

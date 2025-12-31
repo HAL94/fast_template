@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security.jwt import hash_token
 from app.domain.session import SessionBase
-from app.dto.session import CreateSessionDto, LogoutDto
+from app.dto.session import CreateSessionDto
 from app.services.base import BaseService
 
 

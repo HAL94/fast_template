@@ -1,7 +1,6 @@
 from abc import ABC
-from typing import Any, ClassVar, Dict, Literal, Optional, Self, Union
+from typing import Any, ClassVar, Dict, List, Literal, Optional, Self, TypeVar, Union
 
-from fastapi import HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import InstrumentedAttribute
@@ -9,14 +8,17 @@ from sqlalchemy.orm.strategy_options import _AbstractLoad
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.exceptions import NotFoundException
+from app.core.pagination import PaginatedResult
 from app.core.pagination.factory import PaginationQuery
 from app.core.schema import BaseModel as AppBaseModel
 
 from .base import Base
 
+T = TypeVar(name="T", bound=Base)
 
-class BaseModelDatabaseMixin(AppBaseModel, ABC):
-    model: ClassVar[type[Base]]
+
+class BaseModelDatabaseMixin[T](AppBaseModel, ABC):
+    model: ClassVar[Base]
 
     @classmethod
     def relations(cls):
@@ -52,7 +54,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
         *,
         commit: bool = True,
         return_as_base: bool = False,
-    ) -> Union[Self | type[Base]]:
+    ) -> Union[Self | T]:
         try:
             result = await cls.model.create(session, data, commit=commit)
 
@@ -73,7 +75,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
         commit: bool = True,
         return_as_base: bool = False,
         batch_size: Optional[int] = 100,
-    ) -> Union[list[Self], list[Base]]:
+    ) -> Union[list[Self], list[T]]:
         try:
             if not data or len(data) <= 0:
                 return []
@@ -99,7 +101,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
         where_clause: list[ColumnElement[bool]] | None = None,
         commit: bool = True,
         return_as_base: bool = False,
-    ):
+    ) -> Union[Self, T]:
         try:
             result = await cls.model.update_one(session, data, where_clause=where_clause, commit=commit)
 
@@ -119,10 +121,10 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
         pagination: PaginationQuery | None = None,
         where_clause: list[ColumnElement[bool]] | None = [],
         order_clause: list[InstrumentedAttribute] | None = [],
-        limit: int = 20,
+        limit: Optional[int] = 20,
         options: list[_AbstractLoad] | None = None,
         return_as_base: bool = False,
-    ):
+    ) -> Union[List[Self], PaginatedResult[Union[Self, T]]]:
         try:
             if not options:
                 options = cls.relations()
@@ -177,14 +179,14 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
         options: list[_AbstractLoad] | None = None,
         return_as_base: bool = False,
         raise_not_found: bool = True,
-    ) -> Self:
+    ) -> Self | T | None:
         current_options = []
         current_options.extend(cls.relations())
 
         if options is not None:
             current_options.extend(options)
 
-        result: Base = await cls.model.get_one(
+        result = await cls.model.get_one(
             session,
             val,
             field=field,
@@ -192,7 +194,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
             options=current_options,
         )
         if not result and raise_not_found:
-            raise HTTPException(status_code=404, detail="Not found")
+            raise NotFoundException
         if not result:
             return None
 
@@ -211,7 +213,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
         commit: bool = True,
         return_as_base: bool = False,
         on_conflict: Literal["do_nothing", "do_update"] = "do_update",
-    ) -> Union[Self | type[Base]]:
+    ) -> Union[Self, T]:
         if isinstance(data, dict):
             try:
                 data = cls.model_validate(data, from_attributes=True)

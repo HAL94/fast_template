@@ -4,13 +4,12 @@ from typing import Annotated
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import APIKeyCookie, OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.exceptions import NotFoundException
 from app.core.security.jwt import JwtManager, hash_token
 from app.core.security.schema import JwtPayload, TokenType
-from app.dependencies.db_session import get_async_session
+from app.dependencies.db_session import DbSession
 from app.domain.auth import UserBase, UserWithoutPassword
 from app.domain.session import SessionBase
 
@@ -20,9 +19,11 @@ logger = logging.getLogger("uvicorn")
 logger.setLevel(logging.INFO)
 
 
-async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)], session: AsyncSession = Depends(get_async_session)
-) -> UserWithoutPassword:
+RtCookie = Annotated[str, Depends(APIKeyCookie(name=JwtManager.RT_COOKIE_KEY))]
+AtCookie = Annotated[str, Depends(APIKeyCookie(name=JwtManager.AT_COOKIE_KEY))]
+
+
+async def get_current_user(token_encoding: AtCookie, session: DbSession) -> UserWithoutPassword:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -30,6 +31,7 @@ async def get_current_user(
     )
 
     try:
+        token = JwtManager.validate_at_cookie(token_encoding)
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.ALGORITHM])
         validated_payload = JwtPayload.model_validate(payload)
 
@@ -67,4 +69,4 @@ async def get_current_active_user(
     return current_user
 
 
-RtCookie = Annotated[str, Depends(APIKeyCookie(name=JwtManager.RT_COOKIE_KEY))]
+CurrentUser = Annotated[UserWithoutPassword, Depends(get_current_active_user)]

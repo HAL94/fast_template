@@ -54,7 +54,7 @@ class Session(Base):
 
 class Todo(Base):
     __tablename__ = "todos"
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4())
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
 
     title: Mapped[str] = mapped_column(VARCHAR(255), nullable=False)
     # Relationships
@@ -69,7 +69,7 @@ class Todo(Base):
 class Subtask(Base):
     __tablename__ = "subtasks"
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4())
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     priority: Mapped[int] = mapped_column(nullable=False)
     title: Mapped[str] = mapped_column(nullable=True)
     # Relationships

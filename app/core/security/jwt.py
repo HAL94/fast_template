@@ -1,7 +1,7 @@
 import hashlib
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any, Literal, Optional, Union
+from typing import Any, Dict, Literal, Optional, Union
 
 import jwt
 from pwdlib import PasswordHash
@@ -42,11 +42,24 @@ class JwtCookieOptions(BaseModel):
 
 
 class JwtManager:
-    RT_COOKIE_KEY: str = "ath"
+    RT_COOKIE_KEY: str = "rtc"
+    AT_COOKIE_KEY: str = "atc"
+
     signer: CookieSigner = CookieSigner()
 
     @classmethod
-    def rt_cookie_options(cls, value: str) -> dict[str, Any]:
+    def at_cookie_options(cls, value: str) -> Dict[str, Any]:
+        return JwtCookieOptions(
+            key=cls.AT_COOKIE_KEY,
+            value=cls.signer.dumps(value),
+            expires=cls.get_expiry(TokenType.AccessToken),
+            httponly=True,
+            samesite="lax",
+            secure=settings.ENV == "prod",
+        ).model_dump()
+
+    @classmethod
+    def rt_cookie_options(cls, value: str) -> Dict[str, Any]:
         return JwtCookieOptions(
             key=cls.RT_COOKIE_KEY,
             value=cls.signer.dumps(value),
@@ -58,7 +71,11 @@ class JwtManager:
 
     @classmethod
     def validate_rt_cookie(cls, value: str) -> str:
-        return cls.signer.loads(value, settings.REFRESH_TOKEN_EXPIRE_MINUTES)
+        return cls.signer.loads(value, settings.REFRESH_TOKEN_EXPIRE_MINUTES * 60)
+
+    @classmethod
+    def validate_at_cookie(cls, value: str) -> str:
+        return cls.signer.loads(value, settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
 
     @classmethod
     def get_expiry(cls, token_type: TokenType, expire_delta: Union[timedelta | None] = None) -> datetime:
@@ -77,16 +94,16 @@ class JwtManager:
         return datetime.now(tz=UTC) + timedelta(minutes=duration_by_type)
 
     @classmethod
-    def create_token(cls, *, subject: str, token_type: TokenType, expire_delta: Union[timedelta | None] = None) -> str:
+    def create_token(cls, *, subject: str, token_type: TokenType) -> str:
         try:
-            logger.info(f"[JwtManager]: creating toke with subject: {subject} and type: {token_type}")
+            logger.info(f"[JwtManager]: creating token with subject: {subject} and type: {token_type}")
             if subject is None:
                 raise ValueError("'subject' cannot be None")
             if token_type is None:
                 raise ValueError("'token_type' cannot be None")
 
-            exp = cls.get_expiry(token_type=token_type, expire_delta=expire_delta)
-            payload = JwtPayload(sub=subject, exp=exp, type=token_type)
+            exp = cls.get_expiry(token_type=token_type)
+            payload = JwtPayload(sub=subject, exp=exp, type=token_type, iat=datetime.now())
 
             return jwt.encode(payload.model_dump(by_alias=False), settings.JWT_SECRET, algorithm=settings.ALGORITHM)
         except Exception as e:
