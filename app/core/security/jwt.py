@@ -1,13 +1,15 @@
 import hashlib
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Union
+from typing import Any, Literal, Optional, Union
 
 import jwt
 from pwdlib import PasswordHash
+from pydantic import BaseModel, Field
 
 from app.core.config import settings
 from app.core.security.schema import JwtPayload, TokenType
+from app.core.security.signer import CookieSigner
 
 password_hash = PasswordHash.recommended()
 
@@ -27,7 +29,37 @@ def hash_token(refresh_token: str) -> str:
     return hashlib.sha256(refresh_token.encode()).hexdigest()
 
 
+class JwtCookieOptions(BaseModel):
+    key: str
+    value: str
+    max_age: Optional[int] = Field(default=None)
+    expires: Optional[datetime | str | int] = Field(default=None)
+    samesite: Optional[Literal["lax", "strict", "none"]] = Field(defualt="lax")
+    path: Optional[str] = Field(default="/")
+    domain: Optional[str] = Field(default=None)
+    secure: Optional[bool] = Field(default=False)
+    httponly: Optional[bool] = Field(default=False)
+
+
 class JwtManager:
+    RT_COOKIE_KEY: str = "ath"
+    signer: CookieSigner = CookieSigner()
+
+    @classmethod
+    def rt_cookie_options(cls, value: str) -> dict[str, Any]:
+        return JwtCookieOptions(
+            key=cls.RT_COOKIE_KEY,
+            value=cls.signer.dumps(value),
+            expires=cls.get_expiry(TokenType.RefreshToken),
+            httponly=True,
+            samesite="lax",
+            secure=settings.ENV == "prod",
+        ).model_dump()
+
+    @classmethod
+    def validate_rt_cookie(cls, value: str) -> str:
+        return cls.signer.loads(value, settings.REFRESH_TOKEN_EXPIRE_MINUTES)
+
     @classmethod
     def get_expiry(cls, token_type: TokenType, expire_delta: Union[timedelta | None] = None) -> datetime:
         if expire_delta is not None and isinstance(expire_delta, timedelta):
@@ -61,7 +93,7 @@ class JwtManager:
             raise e
 
     @classmethod
-    def verify_token(cls, *, token: str) -> JwtPayload:
+    def verify_token(cls, token: str) -> JwtPayload:
         try:
             result = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.ALGORITHM])
 

@@ -14,7 +14,7 @@ class SessionService(BaseService):
     def _get_model(self):
         return self._session
 
-    async def create_session(self, data: CreateSessionDto) -> SessionBase:
+    async def create_session(self, data: CreateSessionDto, *, commit: bool = True) -> SessionBase:
         try:
             data_base = SessionBase(
                 refresh_token_hash=hash_token(data.refresh_token),
@@ -22,15 +22,15 @@ class SessionService(BaseService):
                 expires_at=data.expires_at,
                 user_id=data.user_id,
             )
-            return await self._session.create(self.session, data_base)
+            return await self._session.create(self.session, data_base, commit=commit)
         except Exception as e:
             raise e
 
-    async def logout_from_session(self, data: LogoutDto) -> None:
+    async def logout_from_session(self, refresh_token: str) -> None:
         try:
             session = await self._session.get_one(
                 self.session,
-                hash_token(data.refresh_token),
+                hash_token(refresh_token),
                 field=self._session.model.refresh_token_hash,
                 return_as_base=True,
             )

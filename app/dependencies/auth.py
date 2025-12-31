@@ -3,14 +3,16 @@ from typing import Annotated
 
 import jwt
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import APIKeyCookie, OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.exceptions import NotFoundException
+from app.core.security.jwt import JwtManager, hash_token
 from app.core.security.schema import JwtPayload, TokenType
 from app.dependencies.db_session import get_async_session
 from app.domain.auth import UserBase, UserWithoutPassword
+from app.domain.session import SessionBase
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
@@ -40,12 +42,20 @@ async def get_current_user(
         if not email:
             raise credentials_exception
 
+        fetched_session = await SessionBase.get_one(
+            session, hash_token(token), field=SessionBase.model.access_token_hash
+        )
+
+        if not fetched_session.is_active:
+            raise credentials_exception
+
         user_data = await UserBase.get_one(session, email, field=UserBase.model.email)
         if not user_data.is_active:
             raise credentials_exception
 
         return UserWithoutPassword.model_validate(user_data)
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as e:
+        logger.info(f"[get_current_user] Error occured: {e}")
         raise credentials_exception
     except NotFoundException:
         raise credentials_exception
@@ -55,3 +65,6 @@ async def get_current_active_user(
     current_user: Annotated[UserBase, Depends(get_current_user)],
 ) -> UserWithoutPassword:
     return current_user
+
+
+RtCookie = Annotated[str, Depends(APIKeyCookie(name=JwtManager.RT_COOKIE_KEY))]

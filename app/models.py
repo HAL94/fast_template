@@ -36,6 +36,7 @@ class Session(Base):
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     refresh_token_hash: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    access_token_hash: Mapped[str] = mapped_column(String, index=True, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     last_used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.now)

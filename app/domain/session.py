@@ -13,6 +13,7 @@ class SessionBase(BaseModelDatabaseMixin):
 
     id: Optional[UUID] = Field(default=None)
     refresh_token_hash: str
+    access_token_hash: str
     expires_at: datetime
 
     is_active: Optional[bool] = Field(default=True)

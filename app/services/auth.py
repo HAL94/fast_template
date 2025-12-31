@@ -1,15 +1,17 @@
 import logging
-from typing import Tuple
 
+from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import AlreadyExistException, UnauthorizedException
-from app.core.security.jwt import JwtManager, hash_password, verify_password
-from app.core.security.schema import TokenType
+from app.core.security.jwt import JwtManager, hash_password, hash_token, verify_password
+from app.core.security.schema import JwtPayload, TokenType
 from app.domain.auth import UserBase, UserWithoutPassword
 from app.domain.session import SessionBase
 from app.dto.auth import LoginUserDto, RegisterUserDto, UserSession
+from app.dto.session import CreateSessionDto
 from app.services.base import BaseService
+from app.services.session import SessionService
 
 logger = logging.getLogger("uvicorn")
 logger.setLevel(logging.INFO)
@@ -21,6 +23,7 @@ class AuthService(BaseService):
         self._user = UserBase
         self._user_without_pw = UserWithoutPassword
         self._session = SessionBase
+        self._session_service = SessionService(session=session)
 
     def _get_model(self) -> type[UserBase]:
         """Return the model class this service works with."""
@@ -50,7 +53,7 @@ class AuthService(BaseService):
             logger.info(f"[AuthService-register]: {e}")
             raise e
 
-    async def login(self, data: LoginUserDto) -> Tuple[UserSession, UserBase]:
+    async def login(self, data: LoginUserDto) -> UserSession:
         try:
             found_user: UserBase = await self._user.get_one(self.session, data.email, field=self._user.model.email)
 
@@ -61,7 +64,57 @@ class AuthService(BaseService):
 
             access_token = JwtManager.create_token(subject=found_user.email, token_type=TokenType.AccessToken)
             refresh_token = JwtManager.create_token(subject=found_user.email, token_type=TokenType.RefreshToken)
-            return UserSession(access_token=access_token, refresh_token=refresh_token), found_user
+
+            user_session = await self._session_service.create_session(
+                CreateSessionDto(
+                    refresh_token=refresh_token,
+                    access_token=access_token,
+                    expires_at=JwtManager.get_expiry(TokenType.RefreshToken),
+                    user_id=found_user.id,
+                )
+            )
+            return UserSession(access_token=access_token, refresh_token=refresh_token, session_id=user_session.id)
         except Exception as e:
             logger.info(f"[AuthService-login]: {e}")
+            raise e
+
+    async def refresh_session(self, rt_encoding: str) -> UserSession:
+        try:
+            credentials_exception = HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+            rt_token = JwtManager.validate_rt_cookie(rt_encoding)
+            jwt_payload: JwtPayload = JwtManager.verify_token(rt_token)
+
+            if jwt_payload.type != TokenType.RefreshToken:
+                raise credentials_exception
+
+            email = jwt_payload.sub
+            found_user = await self._user.get_one(self.session, email, field=self._user.model.email)
+
+            user_session = await self._session.get_one(
+                self.session, hash_token(rt_token), field=self._session.model.refresh_token_hash, return_as_base=True
+            )
+            if not user_session.is_active:
+                raise credentials_exception
+
+            new_access_token = JwtManager.create_token(subject=email, token_type=TokenType.AccessToken)
+            new_refresh_token = JwtManager.create_token(subject=email, token_type=TokenType.RefreshToken)
+
+            user_session.is_active = False
+            new_session = await self._session_service.create_session(
+                CreateSessionDto(
+                    refresh_token=new_refresh_token,
+                    access_token=new_access_token,
+                    expires_at=JwtManager.get_expiry(TokenType.RefreshToken),
+                    user_id=found_user.id,
+                )
+            )
+            return UserSession(
+                access_token=new_access_token, refresh_token=new_refresh_token, session_id=new_session.id
+            )
+        except Exception as e:
+            print(f"Error occure: {e}")
             raise e
