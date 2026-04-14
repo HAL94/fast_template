@@ -1,14 +1,26 @@
+x-backend-test: &backend-test
+  build:
+    context: .
+    dockerfile: Dockerfile
+  volumes:
+    - ./app:/src/app:z
+    - ./tests:/src/tests:z
+    - ./alembic.ini:/src/alembic.ini:z
+    - ./migrations:/src/migrations:z
+    - ./pyproject.toml:/src/pyproject.toml:z
+
+
 services:
   pytest:
-    build: 
-      context: .
-      dockerfile: Dockerfile
-    command: ["uv", "run", "pytest"]
+    <<: *backend-test
+    command: ["pytest", "-v"]
     env_file:
       ./tests/.env.pytest
     depends_on:
-      - db_test
-      - migrator_test
+      db_test:
+        condition: service_healthy
+      migrator_test:
+        condition: service_completed_successfully
     networks:
       - test_network
     
@@ -16,6 +28,11 @@ services:
     container_name: todo_app_db_test
     image: postgres:17.4-alpine3.21
     restart: "no"
+    environment:
+      - POSTGRES_PASSWORD=${PG_PW}
+      - POSTGRES_USER=${PG_USER}
+      - POSTGRES_DB=${PG_DB}
+      - PG_PORT=${PG_PORT}
     env_file:
       ./tests/.env.pytest
     ports:
@@ -30,10 +47,8 @@ services:
 
 
   migrator_test:
-    build: 
-      context: .
-      dockerfile: Dockerfile
-    command: ["uv", "run", "alembic", "upgrade", "head"]
+    <<: *backend-test
+    command: ["alembic", "upgrade", "head"]
     env_file:
       ./tests/.env.pytest
     depends_on:

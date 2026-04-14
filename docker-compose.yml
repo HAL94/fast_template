@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: runner
     volumes:
       - ./app:/src/app:z
       - /src/.venv      
@@ -11,8 +12,10 @@ services:
     env_file:
       - ./.env
     depends_on:
-      - migration
-      - postgres
+      postgres:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
     networks:
       - fast_network
       
@@ -39,8 +42,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: runner
     # The command to execute the Alembic migration script
-    command: ["uv", "run", "alembic", "upgrade", "head"]
+    command: ["alembic", "upgrade", "head"]
 
     # This service should not restart after it has successfully completed its job
     restart: "no"

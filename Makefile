@@ -1,3 +1,4 @@
+PG_DB ?= test
 default: help
 
 .PHONY: help
@@ -24,12 +25,12 @@ db-clean: ## Drop and recreate the public schema for test db
 	docker compose -f docker-compose.test.yaml up -d db_test
 	# Wait for postgres to be ready before dropping
 	docker compose -f docker-compose.test.yaml exec db_test sh -c 'until pg_isready -U $$PG_USER; do sleep 1; done'
-	docker compose -f docker-compose.test.yaml exec db_test psql -U postgres -d test -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+	docker compose -f docker-compose.test.yaml exec db_test psql -U postgres -d $(PG_DB) -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 
 migrate-test: ## Run alembic migrations for test db
 	@echo "--- 🚀 Running Migrations ---"
-	docker compose -f docker-compose.test.yaml up migrator_test
+	docker compose -f docker-compose.test.yaml run --rm migrator_test
 
 run-pytest: ## Run the tests
 	@echo "--- 🧪 Running Pytest ---"
-	docker compose -f docker-compose.test.yaml up --build pytest
+	docker compose -f docker-compose.test.yaml run --rm pytest
