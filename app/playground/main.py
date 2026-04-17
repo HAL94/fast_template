@@ -5,8 +5,8 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import selectinload
 
 from app.core.database import session_manager
-from app.models import Todo
 from app.domain.todo import TodoBase
+from app.models import Todo
 from app.repositories.todo_repository import TodoRepository
 
 
@@ -51,15 +51,28 @@ async def run_pg():
         # updated_todos = await repo.update_many_by_where([april_todos], {"title": "April Task"})
         # print(f"updated_todos: {updated_todos}")
 
+        # result = await repo.update_many_by_pk(
+        #     [
+        #         TodoBase(id=45, title="April task in pydantic"),
+        #         {"title": "April Task 2", "id": 46},
+        #         {"title": "April Task 3", "id": 47},
+        #     ]
+        # )
+        # await session.commit()
+        # result = await repo.update(TodoBase(id=45, title="April Task (edit)"), [Todo.id == 45])
+        # print(Todo.columns())
+        # result = await repo.delete([], commit=True)
+        # await session.commit()
+        # print(f"Result: {result}")
         result = await repo.update_many_by_pk(
             [
-                {"title": "April Task 1", "id": 45},
-                {"title": "April Task 2", "id": 46},
-                {"title": "April Task 3", "id": 47},
-            ]
+                TodoBase(id=56, title="April task 56th (edit 11)"),
+                TodoBase(id=61, title="April Task 57 (edit 22)"),
+                TodoBase(id=62, title="New April Task (edit 33)"),
+            ],
         )
         await session.commit()
-        # print(Todo.columns())
+
         print(f"Result: {result}")
 
 

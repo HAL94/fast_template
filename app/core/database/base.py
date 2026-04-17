@@ -63,13 +63,7 @@ class Base(DeclarativeBase):
         """
         Get a list of column with type information
         """
-        return [
-            {
-                "name": c.name,
-                "type": c.type,
-            }
-            for c in inspect(cls).c
-        ]
+        return cls.__table__.columns
 
     # @classmethod
     # async def exists(

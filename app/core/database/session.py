@@ -51,7 +51,7 @@ class SessionManager:
 session_manager: SessionManager = SessionManager(
     DATABASE_URL,
     kwargs={
-        "echo": False,
+        "echo": True,
     },
 )
 

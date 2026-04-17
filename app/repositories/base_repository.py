@@ -1,8 +1,9 @@
-from typing import Any, ClassVar, Generic, Optional, TypeVar, Union
+from typing import Any, ClassVar, Generic, Literal, Optional, TypeVar, Union
 
 from pydantic import BaseModel
-from sqlalchemy import ColumnElement, func, insert, not_, select, update
+from sqlalchemy import ColumnElement, delete, func, insert, not_, select, update
 from sqlalchemy import exists as _exists
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.orm.strategy_options import _AbstractLoad
@@ -33,7 +34,9 @@ class BaseRepository(Generic[T, M]):
             result.append(self.domain_model(item))
         return result
 
-    def _to_data_dict(self, data: Union[dict[str, Any], BaseModel]) -> dict[str, Any]:
+    def _to_data_dict(
+        self, data: Union[dict[str, Any], BaseModel], /, *, exclude_none: bool = True, exclude_unset: bool = True
+    ) -> dict[str, Any]:
         """
         Ensure that passed object is of a valid dictionary
 
@@ -44,16 +47,18 @@ class BaseRepository(Generic[T, M]):
             data as dictionary
         """
         if isinstance(data, BaseModel):
-            return data.model_dump(exclude_none=True, exclude_unset=True, by_alias=False)
+            return data.model_dump(exclude_none=exclude_none, exclude_unset=exclude_unset, by_alias=False)
         elif isinstance(data, dict):
             return data
         else:
             raise ValueError("Positional argument 'data' is not of type 'BaseModel' or 'dict'")
 
-    def _to_list_data_dict(self, data: list[Union[dict[str, Any], BaseModel]]) -> list[dict[str, Any]]:
+    def _to_list_data_dict(
+        self, data: list[Union[dict[str, Any], BaseModel]], /, *, exclude_none: bool = True, exclude_unset: bool = True
+    ) -> list[dict[str, Any]]:
         result: dict[str, Any] = []
         for item in data:
-            result.append(self._to_data_dict(item))
+            result.append(self._to_data_dict(item, exclude_none=exclude_none, exclude_unset=exclude_unset))
         return result
 
     async def get_one_or_none(
@@ -237,23 +242,20 @@ class BaseRepository(Generic[T, M]):
 
         return self.to_domain_models(result)
 
-    async def update_many_by_where(
+    async def update(
         self,
-        where_clause: list[ColumnElement[bool]],
         data: Union[dict[str, Any], BaseModel],
+        where_clause: list[ColumnElement[bool]],
         /,
         *,
         commit: bool = False,
     ) -> list[T]:
         """
-        Update many records by a list of conditions and a dictionary of values.
-
-        WARNING: this method bypasses the ORM unit of work automation in favor of being able to emit
-        a single UPDATE statement that matches multiple rows at once without complexity.
+        Update one or many records by a list of conditions and a dictionary of values.
 
         Arguments:
+            data: a dictionary of values
             where_clause: a list of conditions
-            values: a dictionary of values
 
         Returns:
             a list of updated records
@@ -278,12 +280,25 @@ class BaseRepository(Generic[T, M]):
 
     async def update_many_by_pk(
         self, data: list[Union[dict[str, Any], BaseModel]], /, *, pk: str = "id", commit: bool = False
-    ):
+    ) -> list[T]:
+        """
+        Similar to method 'update' but specifically by PK field, this allows to pass
+        multiple records at once to be updated. Each record MUST include the Primary Key property.
+
+        Arguments:
+            - data: list of records
+            - pk: primary key to be used
+            - commit: whether to commit or not
+
+        Returns:
+            a list of updated records
+
+        """
         data_dict = self._to_list_data_dict(data)
 
         for item in data_dict:
             if not item.get(pk):
-                raise ValueError("Ensure that all items include PK field")
+                raise ValueError(f"Ensure that all items include PK field: {pk}")
 
         stmt = update(self.model())
         result = await self.session.execute(stmt, data_dict)
@@ -292,7 +307,85 @@ class BaseRepository(Generic[T, M]):
             await self.session.commit()
 
         ids = [item.get(pk) for item in data_dict]
-
         result = await self.session.scalars(select(self.model()).where(self.model().id.in_(ids)))
+
+        return self.to_domain_models(result.all())
+
+    async def delete(self, where_clause: list[ColumnElement[bool]], /, *, commit: bool = False) -> list[T]:
+        """
+        Delete one or more records based on conditions
+
+        Arguments:
+            where_clause: list of conditions (required)
+            commit: default False
+
+        Returns:
+            list of records deleted
+        """
+
+        if not where_clause:
+            raise ValueError("Must pass some 'WHERE' clause to get a value")
+
+        stmt = delete(self.model()).where(*where_clause).returning(self.model())
+
+        results = await self.session.scalars(stmt)
+
+        if commit:
+            await self.session.commit()
+
+        return self.to_domain_models(results.all())
+
+    async def upsert(
+        self,
+        data: list[Union[dict, BaseModel]],
+        index_elements: Optional[list[InstrumentedAttribute | str]] = ["id"],
+        /,
+        *,
+        commit: bool = False,
+        on_conflict: Literal["do_nothing", "do_update"] = "do_update",
+    ) -> list[T]:
+        """
+        Upsert one or more records
+
+        Arguments:
+            data: records to be upserted
+            index_elements: columns to resolve conflicts
+            commit: whether to commit or not. Default is False
+            on_conflit: conflict behaviour. Default is 'do_update'
+
+        Returns:
+            list of records updated or inserted
+        """
+
+        if isinstance(data, list) and len(data) == 0:
+            return []
+
+        if not index_elements:
+            raise ValueError("Positional argument 'index_elements' cannot be None")
+
+        if not data:
+            raise ValueError("Positional argument 'data' is none or is not a list of dictionaries")
+
+        data_dicts = self._to_list_data_dict(data)
+
+        stmt = pg_insert(self.model())
+
+        if on_conflict == "do_nothing":
+            stmt = stmt.on_conflict_do_nothing(index_elements=index_elements)
+        else:
+            columns = self.model().columns()
+            update_columns = {
+                col.key: getattr(stmt.excluded, col.key)
+                for col in columns
+                if col.key not in index_elements and not col.primary_key
+            }
+            stmt = stmt.on_conflict_do_update(index_elements=index_elements, set_=update_columns)
+
+        stmt = stmt.returning(self.model())
+
+        result = await self.session.scalars(stmt, data_dicts, execution_options={"populate_existing": True})
+
+        if commit:
+            await self.session.commit()
 
         return self.to_domain_models(result.all())
