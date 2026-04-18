@@ -7,7 +7,7 @@ from app.core.schema import BaseModel
 
 class TodoCreate(BaseModel):
     title: str
-    # subtasks: Optional[list["SubtaskCreate"]] = Field(default=[])
+    subtasks: Optional[list["SubtaskCreate"]] = Field(default=[])
 
 
 class SubtaskCreate(BaseModel):

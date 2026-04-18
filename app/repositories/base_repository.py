@@ -1,7 +1,7 @@
-from typing import Any, ClassVar, Generic, Literal, Optional, TypeVar, Union
+from typing import Any, ClassVar, Generic, Literal, Optional, Type, TypeVar, Union
 
 from pydantic import BaseModel
-from sqlalchemy import ColumnElement, delete, func, insert, not_, select, update
+from sqlalchemy import ColumnElement, delete, func, insert, literal, not_, select, update
 from sqlalchemy import exists as _exists
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,8 +11,9 @@ from sqlalchemy.orm.strategy_options import _AbstractLoad
 from app.core.database.base import Base
 from app.core.exceptions import NotFoundException
 from app.core.pagination import PaginatedResult
+from app.domain.base import BaseDomain
 
-T = TypeVar(name="T", bound=BaseModel)
+T = TypeVar(name="T", bound=BaseDomain)
 M = TypeVar(name="M", bound=Base)
 
 
@@ -22,29 +23,58 @@ class BaseRepository(Generic[T, M]):
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    def domain_model(self, data: dict[Any, Any]) -> T:
+    def domain_model(self, data: dict[Any, Any], as_domain: Optional[BaseDomain] = None) -> T:
+        """
+        Takes data as a dictionary and transform it to domain model T. Alternatively, transform it to another
+        model by passing `as_domain`
+
+        Arguments:
+            `data`: transformation payload
+            `as_domain`: alternative model to `T`
+
+        Returns:
+            domain model as `T` or the alternative model `as_domain` if passed
+        """
         raise NotImplementedError()
 
     def model(self) -> M:
+        """
+        Return the SQLAlchemy model utilized
+        """
         return self.__model__
 
-    def to_domain_models(self, data: list[dict[Any, Any]]) -> list[T]:
+    def to_domain_models(self, data: list[dict[Any, Any]], as_domain: Optional[BaseDomain] = None) -> list[T]:
+        """
+        Take a list of dictionaries and attempt to transform it to a list of `T`. Alternatively, transform it to
+        another model by passing `as_domain`
+
+        Arguments:
+            `data`: transformation payload
+            `as_domain`: alternative model to `T`
+
+        Returns:
+            list of domain model as `list[T]`
+
+
+        """
         result: list[T] = []
         for item in data:
-            result.append(self.domain_model(item))
+            result.append(self.domain_model(item, as_domain))
         return result
 
     def _to_data_dict(
         self, data: Union[dict[str, Any], BaseModel], /, *, exclude_none: bool = True, exclude_unset: bool = True
     ) -> dict[str, Any]:
         """
-        Ensure that passed object is of a valid dictionary
+        Ensure that passed payload is a `dict`
 
         Arguments:
-            data: payload which is a dictionary or BaseModel
+            `data`: payload which is a `dict` or `BaseModel`
+            `exclude_none`: if `True`, `None` values will be dropped from a `BaseModel`
+            `exclude_unset`: if `True`, values that are ommited will be dropped from a `BaseModel`
 
         Returns:
-            data as dictionary
+            `data` as dictionary
         """
         if isinstance(data, BaseModel):
             return data.model_dump(exclude_none=exclude_none, exclude_unset=exclude_unset, by_alias=False)
@@ -56,31 +86,69 @@ class BaseRepository(Generic[T, M]):
     def _to_list_data_dict(
         self, data: list[Union[dict[str, Any], BaseModel]], /, *, exclude_none: bool = True, exclude_unset: bool = True
     ) -> list[dict[str, Any]]:
+        """
+        Ensure payload is a list of `dict`
+
+        Arguments:
+            `data`: payload which is a list `dict` or `BaseModel`
+            `exclude_none`: if `True`, `None` values will be dropped from a `BaseModel`
+            `exclude_unset`: if `True`, values that are ommited will be dropped from a `BaseModel`
+
+        Returns:
+            `data` as a list of dictionary
+        """
         result: dict[str, Any] = []
         for item in data:
             result.append(self._to_data_dict(item, exclude_none=exclude_none, exclude_unset=exclude_unset))
         return result
 
     async def get_one_or_none(
-        self, where_clause: Optional[list[ColumnElement]] = None, /, *, options: Optional[list[_AbstractLoad]] = None
+        self,
+        where_clause: Optional[list[ColumnElement]] = None,
+        /,
+        *,
+        options: Optional[list[_AbstractLoad]] = None,
+        domain_model: Optional[BaseDomain] = None,
     ) -> Optional[T]:
+        """
+        Retrieve a single record or `None` if non-existant
+
+        Arguments:
+            `where_clause`: list of conditions.
+            `options`: if passed, list of relations to retreive
+            `domain_model`: if passed, an alternative transformation domain model is used
+        """
         if not where_clause:
             raise ValueError("Must pass some condition to get a value")
-        if not options:
-            options = []
 
         stmt = select(self.__model__).where(*where_clause)
+
+        if isinstance(options, list):
+            stmt = stmt.options(*options)
 
         result = (await self.session.execute(stmt)).scalar_one_or_none()
 
         if not result:
             return None
 
-        return self.domain_model(result)
+        return self.domain_model(result, domain_model)
 
     async def get_one(
-        self, where_clause: list[ColumnElement] = None, /, *, options: Optional[list[_AbstractLoad]] = None
-    ) -> T:
+        self,
+        where_clause: list[ColumnElement] = None,
+        /,
+        *,
+        options: Optional[list[_AbstractLoad]] = None,
+        domain_model: Optional[BaseDomain] = None,
+    ) -> Union[T, Type[BaseDomain]]:
+        """
+        Retrieve a single record, or `throw` a `NotFoundException` if not existing
+
+        Arguments:
+            `where_clause`: list of conditions.
+            `options`: if passed, list of relations to retreive
+            `domain_model`: if passed, an alternative transformation domain model is used
+        """
         if not where_clause:
             raise ValueError("Must pass some condition to get a value")
 
@@ -94,7 +162,7 @@ class BaseRepository(Generic[T, M]):
         if not result:
             raise NotFoundException
 
-        return self.domain_model(result)
+        return self.domain_model(result, domain_model)
 
     async def get_many(
         self,
@@ -105,26 +173,28 @@ class BaseRepository(Generic[T, M]):
         page: Optional[int] = 1,
         size: Optional[int] = 5,
         options: Optional[list[_AbstractLoad]] = None,
+        domain_model: Optional[BaseDomain] = None,
     ) -> PaginatedResult[T]:
         """
         Get a list of records
 
         Arguments:
-            where_clause: list of conditions or filters
-            order_clause: list of fields to order by
-            page: number
-            size: number
-            options: a list of options to load relationships with
+            `where_clause`: list of conditions
+            `order_clause`: list of fields to order by
+            `page`: page number (default is `1`)
+            `size`: page size (default is `5`)
+            `options`: if passed, list of relations to retreive
+            `domain_model`: if passed, an alternative transformation domain model is used
 
         Returns:
-            PaginatedResult object composed of (result, total_records, size, page)
+            `PaginatedResult` object
         """
         if not where_clause:
             where_clause = []
         if not order_clause:
             order_clause = []
 
-        offset = page * size
+        offset = (page - 1) * size
 
         stmt = select(self.__model__).where(*where_clause).order_by(*order_clause).offset(offset).limit(size)
 
@@ -135,7 +205,7 @@ class BaseRepository(Generic[T, M]):
 
         result = await self.session.scalars(stmt)
 
-        domain_results = self.to_domain_models(result)
+        domain_results = self.to_domain_models(result, domain_model)
 
         return PaginatedResult(result=domain_results, total_records=total_count, size=size, page=page)
 
@@ -148,16 +218,16 @@ class BaseRepository(Generic[T, M]):
         """
         return await self.session.scalar(func.count(self.model().id))
 
-    async def exists(self, where_clause: list[ColumnElement[bool]] = None, as_not_exists: bool = False) -> bool:
+    async def exists_or_not(self, where_clause: list[ColumnElement[bool]] = None, as_not_exists: bool = False) -> bool:
         """
         Check for existance of record(s) based on condition
 
         Arguments:
-            where_clause: a list of conditions
-            as_not: flip condition of exists to check for non-existance
+            `where_clause`: a list of conditions
+            `as_not_exists`: flip condition of exists to check for non-existance
 
         Returns:
-            True if exists else False
+            `True` if exists else `False`
         """
         if not where_clause:
             raise ValueError("Must pass some 'WHERE' clause to get a value")
@@ -167,22 +237,25 @@ class BaseRepository(Generic[T, M]):
         if as_not_exists:
             subq = not_(subq)
 
-        stmt = select(self.__model__).where(subq)
+        stmt = select(literal(True)).where(subq)
 
-        result = (await self.session.execute(stmt)).all()
+        result = await self.session.scalar(stmt)
 
-        return result is not None and len(result) > 0
+        return bool(result)
 
-    async def create_one(self, data: Union[dict, BaseModel], /, *, commit: bool = False) -> T:
+    async def create_one(
+        self, data: Union[dict, BaseModel], /, *, commit: bool = False, domain_model: Optional[BaseDomain] = None
+    ) -> T:
         """
         Create a record from a Dictionary or BaseModel
 
         Arguments:
-            data: to be inserted
-            commit: defaults to False
+            `data`: to be inserted
+            `commit`: defaults to `False`
+            `domain_model`: if passed, an alternative transformation domain model is used
 
         Returns:
-            Created result of type T
+            Created result of type `T`
         """
         data_json = self._to_data_dict(data)
 
@@ -195,21 +268,22 @@ class BaseRepository(Generic[T, M]):
         else:
             await self.session.flush()
 
-        return self.domain_model(obj)
+        return self.domain_model(obj, domain_model)
 
     async def create_many(
         self, data: list[Union[dict[str, Any], BaseModel]], batch_size: Optional[int] = 1000, /, *, commit: bool = False
     ) -> list[T]:
         """
-        Batch create a list of records from a list of Dictionary or BaseModel
+        Batch create a list of records
 
         Arguments:
-            data: to be inserted
-            batch_size: defaults to 1000
-            commit: default to False
+            `data`: payload
+            `batch_size`: defaults to `1000`
+            `commit`: default to `False`
+            `domain_model`: if passed, an alternative transformation domain model is used
 
         Returns
-            Created sequence of results of domain type list[T]
+            Created sequence of results of domain type `list[T]`
         """
         if not isinstance(data, list):
             raise ValueError("positional argument 'data' must be a list")
@@ -236,6 +310,7 @@ class BaseRepository(Generic[T, M]):
                 result.extend(result_batch)
         except Exception as e:
             print(f"Batch {batch} failed with {str(e)}")
+            raise e
 
         if commit:
             await self.session.commit()
@@ -249,13 +324,15 @@ class BaseRepository(Generic[T, M]):
         /,
         *,
         commit: bool = False,
+        domain_model: Optional[BaseDomain] = None,
     ) -> list[T]:
         """
-        Update one or many records by a list of conditions and a dictionary of values.
+        Update one or many records based on a condition.
 
         Arguments:
-            data: a dictionary of values
-            where_clause: a list of conditions
+            `data`: update payload
+            `where_clause`: a list of conditions
+            `domain_model`: if passed, an alternative transformation domain model is used
 
         Returns:
             a list of updated records
@@ -274,21 +351,28 @@ class BaseRepository(Generic[T, M]):
             if commit:
                 await self.session.commit()
 
-            return self.to_domain_models(result)
+            return self.to_domain_models(result, domain_model)
         except Exception as e:
             raise e
 
     async def update_many_by_pk(
-        self, data: list[Union[dict[str, Any], BaseModel]], /, *, pk: str = "id", commit: bool = False
+        self,
+        data: list[Union[dict[str, Any], BaseModel]],
+        /,
+        *,
+        pk: str = "id",
+        commit: bool = False,
+        domain_model: Optional[BaseDomain] = None,
     ) -> list[T]:
         """
-        Similar to method 'update' but specifically by PK field, this allows to pass
-        multiple records at once to be updated. Each record MUST include the Primary Key property.
+        Similar to method `update` but specifically by `Primary Key` field, this allows to pass
+        multiple records at once to be updated. Each record MUST include the `Primary Key` property.
 
         Arguments:
-            - data: list of records
-            - pk: primary key to be used
-            - commit: whether to commit or not
+            `data`: list of records
+            `pk`: `primary key` to be used
+            `commit`: whether to commit or not
+            `domain_model`: if passed, an alternative transformation domain model is used
 
         Returns:
             a list of updated records
@@ -307,20 +391,29 @@ class BaseRepository(Generic[T, M]):
             await self.session.commit()
 
         ids = [item.get(pk) for item in data_dict]
-        result = await self.session.scalars(select(self.model()).where(self.model().id.in_(ids)))
+        refetch_stmt = select(self.__model__).where(self.model().id.in_(ids)).execution_options(populate_existing=True)
+        result = await self.session.scalars(refetch_stmt)
 
-        return self.to_domain_models(result.all())
+        return self.to_domain_models(result.all(), domain_model)
 
-    async def delete(self, where_clause: list[ColumnElement[bool]], /, *, commit: bool = False) -> list[T]:
+    async def delete(
+        self,
+        where_clause: list[ColumnElement[bool]],
+        /,
+        *,
+        commit: bool = False,
+        domain_model: Optional[BaseDomain] = None,
+    ) -> list[T]:
         """
         Delete one or more records based on conditions
 
         Arguments:
-            where_clause: list of conditions (required)
-            commit: default False
+           `where_clause`: list of conditions.
+           `commit`: default `False`.
+           `domain_model`: if passed, an alternative transformation domain model is used
 
         Returns:
-            list of records deleted
+            deleted records
         """
 
         if not where_clause:
@@ -333,7 +426,7 @@ class BaseRepository(Generic[T, M]):
         if commit:
             await self.session.commit()
 
-        return self.to_domain_models(results.all())
+        return self.to_domain_models(results.all(), domain_model)
 
     async def upsert(
         self,
@@ -348,10 +441,10 @@ class BaseRepository(Generic[T, M]):
         Upsert one or more records
 
         Arguments:
-            data: records to be upserted
-            index_elements: columns to resolve conflicts
-            commit: whether to commit or not. Default is False
-            on_conflit: conflict behaviour. Default is 'do_update'
+            `data`: records to be upserted
+            `index_elements`: anchor columns to check if already existing.
+            `commit`: whether to commit or not. Default is `False`
+            `on_conflit`: conflict behaviour. Default is `do_update`
 
         Returns:
             list of records updated or inserted
@@ -363,8 +456,8 @@ class BaseRepository(Generic[T, M]):
         if not index_elements:
             raise ValueError("Positional argument 'index_elements' cannot be None")
 
-        if not data:
-            raise ValueError("Positional argument 'data' is none or is not a list of dictionaries")
+        if not data or not isinstance(data, list):
+            raise ValueError("Positional argument 'data' is none or is not a list")
 
         data_dicts = self._to_list_data_dict(data)
 

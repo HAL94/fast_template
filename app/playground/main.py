@@ -39,7 +39,7 @@ async def run_pg():
         #     [Todo.created_at.between(datetime(2026, 4, 1), datetime(2026, 4, 30))], as_not_exists=True
         # )
         # print(f"Do we have records with title like 'Task'? {'YES' if exists_ else 'NO'}")
-        april_todos = Todo.created_at.between(datetime(2026, 2, 1), datetime(2026, 4, 28))
+        # april_todos = Todo.created_at.between(datetime(2026, 2, 1), datetime(2026, 4, 28))
         # contains_task_keyword = Todo.title.ilike("%item%")
 
         # paginated_result = await repo.get_many(
