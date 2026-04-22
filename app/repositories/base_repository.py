@@ -97,7 +97,7 @@ class BaseRepository(Generic[T, M]):
         Returns:
             `data` as a list of dictionary
         """
-        result: dict[str, Any] = []
+        result: list[dict[str, Any]] = []
         for item in data:
             result.append(self._to_data_dict(item, exclude_none=exclude_none, exclude_unset=exclude_unset))
         return result

@@ -54,8 +54,3 @@ session_manager: SessionManager = SessionManager(
         "echo": False,
     },
 )
-
-
-async def get_async_session():
-    async with session_manager.session() as session:
-        yield session

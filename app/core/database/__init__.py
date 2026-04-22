@@ -1,5 +1,5 @@
 from .base import Base
-from .session import SessionManager, get_async_session, session_manager
+from .session import SessionManager, session_manager
 from .url import DATABASE_URL
 
-__all__ = [SessionManager, session_manager, get_async_session, DATABASE_URL, Base]
+__all__ = [SessionManager, session_manager, DATABASE_URL, Base]

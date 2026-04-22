@@ -17,15 +17,15 @@ class TodoService(BaseService):
         self.todo_repo = TodoRepository(session=session)
         self.subtask_repo = SubtaskRepository(session=session)
 
-    async def get_todos(self) -> PaginatedResult[TodoBase]:
-        return await self.todo_repo.get_many()
+    async def get_todos(self, user_id: UUID) -> PaginatedResult[TodoBase]:
+        return await self.todo_repo.get_many(where_clause=[TodoBase.model.user_id == user_id])
 
-    async def get_todo(self, todo_id: UUID) -> TodoWithTasks:
-        where_clause = [TodoBase.model.id == todo_id]
+    async def get_todo(self, todo_id: UUID, user_id: UUID) -> TodoWithTasks:
+        where_clause = [TodoBase.model.id == todo_id, TodoBase.model.user_id == user_id]
         return await self.todo_repo.get_one(where_clause, options=TodoWithTasks.relations(), domain_model=TodoWithTasks)
 
-    async def create_todo(self, todo_create: TodoCreate) -> TodoWithTasks:
-        created_todo = await self.todo_repo.create_one(TodoBase(title=todo_create.title))
+    async def create_todo(self, todo_create: TodoCreate, user_id: UUID) -> TodoWithTasks:
+        created_todo = await self.todo_repo.create_one(TodoBase(title=todo_create.title, user_id=user_id))
         subtask_payload: list[SubtaskBase] = []
 
         for subtask in todo_create.subtasks:
@@ -39,8 +39,8 @@ class TodoService(BaseService):
         todo.subtasks = created_subtasks
         return todo
 
-    async def delete_todo(self, todo_id: UUID) -> Optional[TodoWithTasks]:
-        where_clause = [TodoBase.model.id == todo_id]
+    async def delete_todo(self, todo_id: UUID, user_id: UUID) -> Optional[TodoWithTasks]:
+        where_clause = [TodoBase.model.id == todo_id, TodoBase.model.user_id == user_id]
 
         todo_to_delete = await self.todo_repo.get_one_or_none(
             where_clause, options=TodoWithTasks.relations(), domain_model=TodoWithTasks

@@ -23,7 +23,7 @@ services:
         condition: service_completed_successfully
     networks:
       - test_network
-    
+
   db_test:
     container_name: todo_app_db_test
     image: postgres:17.4-alpine3.21

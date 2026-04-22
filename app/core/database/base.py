@@ -1,9 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, override
-from uuid import uuid4
 
 from sqlalchemy import (
-    UUID,
     Column,
     DateTime,
     func,

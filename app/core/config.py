@@ -15,11 +15,18 @@ class PostgresSettings(BaseSettings):
     PG_DB: str
 
 
+class JwtSettings(BaseSettings):
+    JWT_SECRET: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
+    ALGORITHM: str = "HS256"
+
+
 class RedisSettings(BaseSettings):
     REDIS_SERVER: str
 
 
-class Settings(PostgresSettings, AppConfigSettings, RedisSettings):
+class Settings(PostgresSettings, AppConfigSettings, RedisSettings, JwtSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 

@@ -12,10 +12,10 @@ from app.core.config import Settings, get_settings
 from app.core.database import session_manager
 from app.core.exceptions import AppException
 from app.models import *  # noqa: F403
-from app.redis import RedisClient, get_redis_client
+from app.redis_client import RedisClient, get_redis_client
 
-logger = logging.getLogger("uvicorn.info")
-logger.setLevel(logging.INFO)
+logger = logging.getLogger("uvicorn.error")
+logger.setLevel(logging.ERROR)
 
 
 class FastApp(FastAPI):
@@ -69,6 +69,8 @@ class FastApp(FastAPI):
 
         @self.exception_handler(HTTPException)
         async def http_handler(request: Request, exc: HTTPException):
+            logger.error(f"Exception at handler: {exc}")
+
             logger.error(
                 f"Method: {request.method}. Request Failed: URL: {request.url}. Error: {str(exc)}. Traceback:\n{tb_str}"
             )
@@ -77,9 +79,9 @@ class FastApp(FastAPI):
     def setup(self) -> None:
         super().setup()
 
+        self._setup_exception_handlers()
         self._setup_middlewares()
         self._setup_routers()
-        self._setup_exception_handlers()
 
 
 app = FastApp(settings=get_settings())

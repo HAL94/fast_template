@@ -26,7 +26,7 @@ class AppException(HTTPException):
             success=False,
             status_code=self.status_code,
             message=self.message,
-        ).model_dump()
+        ).model_dump(by_alias=True)
 
 
 class BadRequestException(AppException):

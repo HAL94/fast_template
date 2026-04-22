@@ -14,6 +14,7 @@ class TodoBase(BaseDomain[Todo]):
 
     id: Optional[UUID] = Field(default=None)
     title: str
+    user_id: UUID
 
 
 class TodoWithTasks(TodoBase):
