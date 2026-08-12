@@ -1,3 +1,3 @@
-from .client import RedisClient, get_redis_client, redis_client
+from .client import RedisClient
 
-__all__ = [get_redis_client, redis_client, RedisClient]
+__all__ = [RedisClient]

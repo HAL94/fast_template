@@ -1,12 +1,10 @@
 import json
+import logging
 import traceback
 from typing import Any, Optional, Union
-from pydantic import BaseModel, Field
+
 import redis.asyncio as redis
-
-import logging
-
-from app.core.config import settings
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger("uvicorn")
 logger.setLevel(logging.INFO)
@@ -18,7 +16,16 @@ class RedisClientConfig(BaseModel):
     db: Optional[int] = Field(default=0)
     port: Optional[int] = Field(default=6379)
     decode_responses: Optional[bool] = Field(default=True)
-    max_connections: Optional[int] = Field(default=10)
+    max_connections: Optional[int] = Field(default=50)
+
+    def get_redis_url(self) -> str:
+        """Return a Redis connection URL built from this configuration."""
+        host = self.host or "localhost"
+        port = self.port or 6379
+        db = self.db or 0
+        if self.password:
+            return f"redis://:{self.password}@{host}:{port}/{db}"
+        return f"redis://{host}:{port}/{db}"
 
 
 class RedisClient:
@@ -35,12 +42,15 @@ class RedisClient:
         """
         self._config = redis_config
         self._client: Optional[redis.Redis] = None
+        self._pool = redis.ConnectionPool.from_url(
+            self._config.get_redis_url(), max_connections=self._config.max_connections, retry_on_timeout=True
+        )
 
     async def connect(self) -> bool:
         """Connect to the redis instance"""
         try:
             if not self._client:
-                self._client = redis.Redis(**self._config.model_dump())
+                self._client = redis.Redis(connection_pool=self._pool)
             is_connected = await self._client.ping()
             if is_connected:
                 logger.info("[RedisClient] is connected successfully!")
@@ -145,14 +155,3 @@ class RedisClient:
             Number of existing keys
         """
         return await self.client.exists(*keys)
-
-
-redis_client: RedisClient | None = None
-redis_config: RedisClientConfig = RedisClientConfig(host=settings.REDIS_SERVER)
-
-
-def get_redis_client():
-    global redis_client
-    if not redis_client:
-        redis_client = RedisClient(redis_config)
-    return redis_client

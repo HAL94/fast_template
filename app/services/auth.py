@@ -4,7 +4,7 @@ import traceback
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import AlreadyExistException, InternalFailureException, UnauthorizedException
+from app.core.exceptions import AlreadyExistException, UnauthorizedException
 from app.core.security.jwt import JwtManager, hash_password, hash_token, verify_password
 from app.core.security.schema import JwtPayload, TokenType
 from app.domain.auth import UserBase, UserWithoutPassword

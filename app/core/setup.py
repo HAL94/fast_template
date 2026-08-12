@@ -11,8 +11,8 @@ from app.api import api_router
 from app.core.config import Settings, get_settings
 from app.core.database import session_manager
 from app.core.exceptions import AppException
+from app.dependencies.redis import get_redis_client
 from app.models import *  # noqa: F403
-from app.redis_client import RedisClient, get_redis_client
 
 logger = logging.getLogger("uvicorn.error")
 logger.setLevel(logging.ERROR)
@@ -26,7 +26,7 @@ class FastApp(FastAPI):
 
     @asynccontextmanager
     async def _lifespan(self, _: Self, /) -> AsyncGenerator[None, Any]:
-        redis_client: RedisClient = get_redis_client()
+        redis_client = get_redis_client()
         await redis_client.connect()
         yield
         await session_manager.close()
